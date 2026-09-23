@@ -1,4 +1,7 @@
 import { Resource } from '../types';
+import coverPostutme from '../assets/images/cover_postutme_unilag_1790125905105.jpg';
+import coverJambEnglish from '../assets/images/cover_jamb_english_1790125914520.jpg';
+import coverJambSciences from '../assets/images/cover_jamb_sciences_1790125924446.jpg';
 
 export const INITIAL_RESOURCES: Resource[] = [
   {
@@ -11,7 +14,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2010 - 2025 Solved',
     price: 2500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+    coverUrl: coverPostutme,
     fileSize: '8.4 MB',
     pageCount: 164,
     format: 'High-Res PDF (Printable & Mobile Friendly)',
@@ -53,7 +56,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2012 - 2025 Full Solutions',
     price: 0,
     isFree: true,
-    coverUrl: '/src/assets/images/cover_jamb_english_1790125914520.jpg',
+    coverUrl: coverJambEnglish,
     fileSize: '5.2 MB',
     pageCount: 142,
     format: 'PDF (Free Student Edition)',
@@ -94,7 +97,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2015 - 2025 Past Series',
     price: 2000,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_jamb_sciences_1790125924446.jpg',
+    coverUrl: coverJambSciences,
     fileSize: '11.5 MB',
     pageCount: 210,
     format: 'PDF Study Pack + Printable Formula Tables',
@@ -135,7 +138,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2012 - 2025 Solved',
     price: 2500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+    coverUrl: coverPostutme,
     fileSize: '7.8 MB',
     pageCount: 156,
     format: 'Printable PDF',
@@ -170,7 +173,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2011 - 2025 Solved',
     price: 2500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+    coverUrl: coverPostutme,
     fileSize: '8.1 MB',
     pageCount: 160,
     format: 'Printable PDF',
@@ -197,7 +200,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2013 - 2025 Solved',
     price: 2500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+    coverUrl: coverPostutme,
     fileSize: '7.4 MB',
     pageCount: 148,
     format: 'Printable PDF',
@@ -223,7 +226,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2025 - 2026 Approved Edition',
     price: 0,
     isFree: true,
-    coverUrl: '/src/assets/images/cover_jamb_english_1790125914520.jpg',
+    coverUrl: coverJambEnglish,
     fileSize: '4.1 MB',
     pageCount: 88,
     format: 'PDF eBook',
@@ -250,7 +253,7 @@ export const INITIAL_RESOURCES: Resource[] = [
     yearRange: '2010 - 2025 Complete Bundle',
     price: 4500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_jamb_sciences_1790125924446.jpg',
+    coverUrl: coverJambSciences,
     fileSize: '24.2 MB',
     pageCount: 520,
     format: 'All-In-One PDF Bundle + CBT Mock Software Access',

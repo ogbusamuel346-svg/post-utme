@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, ArrowRight, ShieldCheck, Download, Award, CheckCircle } from 'lucide-react';
+import heroImage from '../assets/images/hero_jamb_students_1790125894091.jpg';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
@@ -124,7 +125,7 @@ export function HeroSection({ onSearch, onSelectCategory }: HeroSectionProps) {
               {/* Main Photo Frame */}
               <div className="relative rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl aspect-[2/3] bg-slate-800">
                 <img
-                  src="/src/assets/images/hero_jamb_students_1790125894091.jpg"
+                  src={heroImage}
                   alt="Female Nigerian university student preparing for JAMB examinations"
                   className="absolute inset-0 w-full h-full object-cover object-[35%_center] scale-[1.65] origin-[35%_58%]"
                   referrerPolicy="no-referrer"

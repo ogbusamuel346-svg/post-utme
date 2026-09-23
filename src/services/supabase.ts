@@ -1,11 +1,25 @@
 import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 import { Resource, SupabaseConfig } from '../types';
 import { INITIAL_RESOURCES } from '../data/initialResources';
+import coverPostutme from '../assets/images/cover_postutme_unilag_1790125905105.jpg';
+import coverJambEnglish from '../assets/images/cover_jamb_english_1790125914520.jpg';
+import coverJambSciences from '../assets/images/cover_jamb_sciences_1790125924446.jpg';
 
 const STORAGE_KEY_RESOURCES = 'edujamb_resources_catalog';
 const STORAGE_KEY_CONFIG = 'edujamb_supabase_config';
 const STORAGE_UPLOAD_TIMEOUT_MS = 60_000;
 const PRODUCTS_TABLE_SETUP_MESSAGE = 'Supabase is connected, but public.products is missing. Run the SQL migration from Admin > Supabase Settings.';
+const LEGACY_COVER_URLS: Record<string, string> = {
+  '/src/assets/images/cover_postutme_unilag_1790125905105.jpg': coverPostutme,
+  '/src/assets/images/cover_jamb_english_1790125914520.jpg': coverJambEnglish,
+  '/src/assets/images/cover_jamb_sciences_1790125924446.jpg': coverJambSciences
+};
+
+const normalizeCoverUrl = (url: string): string => LEGACY_COVER_URLS[url] || url;
+const normalizeResource = (resource: Resource): Resource => ({
+  ...resource,
+  coverUrl: normalizeCoverUrl(resource.coverUrl || '')
+});
 
 const isProductsTableMissingError = (error: any): boolean => {
   const message = String(error?.message || '').toLowerCase();
@@ -303,7 +317,7 @@ class SupabaseService {
               yearRange: item.year_range || item.yearRange || '',
               price: Number(item.price) || 0,
               isFree: Boolean(item.is_free ?? (Number(item.price) === 0)),
-              coverUrl: item.cover_url || item.coverUrl || '',
+              coverUrl: normalizeCoverUrl(item.cover_url || item.coverUrl || ''),
               fileUrl: item.file_url || item.fileUrl || '',
               fileSize: item.file_size || item.fileSize || '5.0 MB',
               pageCount: item.page_count || item.pageCount || 100,
@@ -344,7 +358,7 @@ class SupabaseService {
         // [] is a valid, intentionally empty catalog. Treating it as missing
         // data would resurrect the seed products after the last item is deleted.
         if (Array.isArray(parsed)) {
-          return parsed;
+          return parsed.map(normalizeResource);
         }
       } catch (e) {
         console.error('Failed to parse local resources:', e);
@@ -362,7 +376,7 @@ class SupabaseService {
       try {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed)) {
-          return parsed;
+          return parsed.map(normalizeResource);
         }
       } catch (e) {
         console.error('Failed to parse local resources:', e);
@@ -381,7 +395,7 @@ class SupabaseService {
           copy.fileUrl = '';
         }
         if (copy.coverUrl && copy.coverUrl.startsWith('data:') && copy.coverUrl.length > 500000) {
-          copy.coverUrl = '/src/assets/images/cover_postutme_unilag_1790125905105.jpg';
+          copy.coverUrl = coverPostutme;
         }
         return copy;
       });

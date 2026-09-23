@@ -1,6 +1,9 @@
 import { useState, useRef } from 'react';
 import { Resource, ResourceCategory, SupabaseConfig } from '../types';
 import { supabaseService } from '../services/supabase';
+import coverPostutme from '../assets/images/cover_postutme_unilag_1790125905105.jpg';
+import coverJambEnglish from '../assets/images/cover_jamb_english_1790125914520.jpg';
+import coverJambSciences from '../assets/images/cover_jamb_sciences_1790125924446.jpg';
 import { 
   Plus, Edit2, Trash2, Database, Upload, CheckCircle2, 
   AlertCircle, RefreshCw, Copy, Check, ExternalLink, 
@@ -52,7 +55,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     yearRange: '2015 - 2025 Solved',
     price: 2500,
     isFree: false,
-    coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+    coverUrl: coverPostutme,
     fileUrl: '',
     fileSize: '7.5 MB',
     pageCount: 140,
@@ -86,7 +89,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       yearRange: '2015 - 2025 Solved',
       price: 2500,
       isFree: false,
-      coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+      coverUrl: coverPostutme,
       fileUrl: '',
       fileSize: '7.5 MB',
       pageCount: 140,
@@ -175,7 +178,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
         yearRange: formData.yearRange.trim() || 'Recent Solved',
         price: formData.isFree ? 0 : Number(formData.price),
         isFree: Boolean(formData.isFree),
-        coverUrl: formData.coverUrl.trim() || '/src/assets/images/cover_postutme_unilag_1790125905105.jpg',
+        coverUrl: formData.coverUrl.trim() || coverPostutme,
         fileUrl: formData.fileUrl.trim(),
         fileSize: formData.fileSize || '5.0 MB',
         pageCount: Number(formData.pageCount) || 120,
@@ -910,21 +913,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                       <span className="text-slate-400">Presets:</span>
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, coverUrl: '/src/assets/images/cover_postutme_unilag_1790125905105.jpg' })}
+                        onClick={() => setFormData({ ...formData, coverUrl: coverPostutme })}
                         className="text-slate-600 hover:text-orange-600 underline cursor-pointer"
                       >
                         UNILAG / Post-UTME
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, coverUrl: '/src/assets/images/cover_jamb_english_1790125914520.jpg' })}
+                        onClick={() => setFormData({ ...formData, coverUrl: coverJambEnglish })}
                         className="text-slate-600 hover:text-orange-600 underline cursor-pointer"
                       >
                         JAMB English
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, coverUrl: '/src/assets/images/cover_jamb_sciences_1790125924446.jpg' })}
+                        onClick={() => setFormData({ ...formData, coverUrl: coverJambSciences })}
                         className="text-slate-600 hover:text-orange-600 underline cursor-pointer"
                       >
                         Science Bundle
