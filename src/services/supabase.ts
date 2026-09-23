@@ -4,6 +4,16 @@ import { INITIAL_RESOURCES } from '../data/initialResources';
 
 const STORAGE_KEY_RESOURCES = 'edujamb_resources_catalog';
 const STORAGE_KEY_CONFIG = 'edujamb_supabase_config';
+const STORAGE_UPLOAD_TIMEOUT_MS = 60_000;
+const PRODUCTS_TABLE_SETUP_MESSAGE = 'Supabase is connected, but public.products is missing. Run the SQL migration from Admin > Supabase Settings.';
+
+const isProductsTableMissingError = (error: any): boolean => {
+  const message = String(error?.message || '').toLowerCase();
+  return error?.code === 'PGRST205' ||
+    error?.code === '42P01' ||
+    message.includes("could not find the table 'public.products'") ||
+    message.includes('relation "products" does not exist');
+};
 
 // Check environment variables first, then localStorage
 const ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -203,11 +213,27 @@ class SupabaseService {
     }
 
     try {
+      // Reconnecting from the admin settings creates a new Supabase client.
+      // Preserve the current admin session so subsequent writes do not fall
+      // back to the anonymous role and get rejected by RLS.
+      let currentSession: Session | null = null;
+      if (this.client) {
+        try {
+          const { data } = await this.client.auth.getSession();
+          currentSession = data.session;
+        } catch {
+          currentSession = null;
+        }
+      }
+
       const testClient = createClient(trimmedUrl, trimmedKey);
       // Fast probe to check connection
       const { error } = await testClient.from('products').select('count', { count: 'exact', head: true });
       
-      // Even if table doesn't exist yet, reaching Supabase means URL & key are active
+      if (isProductsTableMissingError(error)) {
+        return { success: false, message: PRODUCTS_TABLE_SETUP_MESSAGE };
+      }
+
       if (error && error.code !== 'PGRST116' && !error.message.includes('relation "products" does not exist') && error.code !== '42P01') {
         if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
           return { success: false, message: 'Invalid Supabase Anon Key. Please check your credentials.' };
@@ -215,6 +241,17 @@ class SupabaseService {
       }
 
       this.client = testClient;
+
+      if (currentSession) {
+        const { error: sessionError } = await this.client.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token
+        });
+        if (sessionError) {
+          console.warn('Supabase admin session could not be restored:', sessionError.message);
+        }
+      }
+
       this.config = {
         url: trimmedUrl,
         anonKey: trimmedKey,
@@ -239,36 +276,60 @@ class SupabaseService {
           .select('*')
           .order('downloads_count', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        // An empty Supabase result is still an authoritative result. Do not fall
+        // back to a stale local catalog when all products have been deleted.
+        if (!error && Array.isArray(data)) {
           // Map DB columns to Resource interface
-          const mapped: Resource[] = data.map((item: any) => ({
-            id: item.id,
-            slug: item.slug || item.id,
-            title: item.title,
-            category: item.category,
-            institution: item.institution,
-            subject: item.subject,
-            yearRange: item.year_range || item.yearRange || '',
-            price: Number(item.price) || 0,
-            isFree: Boolean(item.is_free ?? (Number(item.price) === 0)),
-            coverUrl: item.cover_url || item.coverUrl || '',
-            fileUrl: item.file_url || item.fileUrl || '',
-            fileSize: item.file_size || item.fileSize || '5.0 MB',
-            pageCount: item.page_count || item.pageCount || 100,
-            format: item.format || 'PDF eBook',
-            description: item.description || '',
-            features: Array.isArray(item.features) ? item.features : (typeof item.features === 'string' ? JSON.parse(item.features || '[]') : []),
-            downloadsCount: item.downloads_count || item.downloadsCount || 0,
-            rating: item.rating || 5.0,
-            reviewCount: item.review_count || item.reviewCount || 0,
-            isFeatured: item.is_featured ?? true,
-            sampleQuestions: item.sample_questions || [],
-            createdAt: item.created_at || new Date().toISOString()
-          }));
+          const mapped: Resource[] = data.map((item: any) => {
+            let features: string[] = [];
+            if (Array.isArray(item.features)) {
+              features = item.features;
+            } else if (typeof item.features === 'string') {
+              try {
+                const parsedFeatures = JSON.parse(item.features || '[]');
+                features = Array.isArray(parsedFeatures) ? parsedFeatures : [];
+              } catch {
+                features = [];
+              }
+            }
+
+            return {
+              id: item.id,
+              slug: item.slug || item.id,
+              title: item.title,
+              category: item.category,
+              institution: item.institution,
+              subject: item.subject,
+              yearRange: item.year_range || item.yearRange || '',
+              price: Number(item.price) || 0,
+              isFree: Boolean(item.is_free ?? (Number(item.price) === 0)),
+              coverUrl: item.cover_url || item.coverUrl || '',
+              fileUrl: item.file_url || item.fileUrl || '',
+              fileSize: item.file_size || item.fileSize || '5.0 MB',
+              pageCount: item.page_count || item.pageCount || 100,
+              format: item.format || 'PDF eBook',
+              description: item.description || '',
+              features,
+              downloadsCount: item.downloads_count || item.downloadsCount || 0,
+              rating: item.rating || 5.0,
+              reviewCount: item.review_count || item.reviewCount || 0,
+              isFeatured: item.is_featured ?? true,
+              sampleQuestions: item.sample_questions || [],
+              createdAt: item.created_at || new Date().toISOString()
+            };
+          });
 
           // Cache in local storage for instant offline / fallback speed
           localStorage.setItem(STORAGE_KEY_RESOURCES, JSON.stringify(mapped));
           return mapped;
+        }
+
+        if (error) {
+          console.warn(
+            isProductsTableMissingError(error)
+              ? PRODUCTS_TABLE_SETUP_MESSAGE
+              : `Supabase query failed, falling back to local storage cache: ${error.message}`
+          );
         }
       } catch (err) {
         console.warn('Supabase query failed, falling back to local storage cache:', err);
@@ -280,7 +341,9 @@ class SupabaseService {
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        // [] is a valid, intentionally empty catalog. Treating it as missing
+        // data would resurrect the seed products after the last item is deleted.
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       } catch (e) {
@@ -298,7 +361,7 @@ class SupabaseService {
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       } catch (e) {
@@ -329,7 +392,9 @@ class SupabaseService {
   }
 
   public async saveResource(resource: Resource): Promise<{ success: boolean; data: Resource; message?: string }> {
-    // 1. Instant local storage update without blocking network fetch
+    // Build the local cache update once, but only commit it after a connected
+    // Supabase save succeeds. This prevents a failed cloud write from looking
+    // successful and then disappearing during the next refresh.
     const currentList = this.getLocalResourcesSync();
     const index = currentList.findIndex(r => r.id === resource.id);
     let updatedList: Resource[];
@@ -340,9 +405,8 @@ class SupabaseService {
     } else {
       updatedList = [resource, ...currentList];
     }
-    this.saveToLocalStorage(updatedList);
-
-    // 2. If Supabase is connected, fast upsert into 'products' table with 6-second timeout
+    // If Supabase is connected, upsert into 'products' first. The cloud catalog
+    // is the source of truth for all browsers when a connection is configured.
     if (this.client) {
       try {
         const payload = {
@@ -377,34 +441,78 @@ class SupabaseService {
 
         const { error } = await Promise.race([upsertPromise, timeoutPromise]) as any;
         if (error) {
-          console.warn('Supabase upsert warning (saved locally):', error.message);
-          return { success: true, data: resource, message: `Saved locally. (Supabase notice: ${error.message})` };
+          console.warn('Supabase upsert failed:', error.message);
+          return {
+            success: false,
+            data: resource,
+            message: isProductsTableMissingError(error)
+              ? PRODUCTS_TABLE_SETUP_MESSAGE
+              : `Could not publish resource: ${error.message}`
+          };
         }
       } catch (err: any) {
-        console.warn('Supabase upsert failed/timeout, saved to local cache:', err?.message || err);
-        return { success: true, data: resource, message: 'Saved to local cache.' };
+        console.warn('Supabase upsert failed:', err?.message || err);
+        return { success: false, data: resource, message: `Could not publish resource: ${err?.message || 'Supabase request failed.'}` };
+      }
+
+      this.saveToLocalStorage(updatedList);
+      return { success: true, data: resource, message: 'Resource published successfully.' };
+    }
+
+    // Local-only mode remains fully usable without Supabase.
+    this.saveToLocalStorage(updatedList);
+    return { success: true, data: resource, message: 'Resource saved locally.' };
+  }
+
+  public async deleteResource(id: string): Promise<{ success: boolean; message?: string }> {
+    // Delete from Supabase first when connected. Previously this method
+    // discarded the local item even when Supabase rejected the delete, then a
+    // refresh loaded the still-existing cloud row back into the frontend.
+    if (this.client) {
+      try {
+        // Keep the delete request as a plain DELETE. Adding `.select()` turns
+        // it into a `return=representation` request, which can be rejected by
+        // otherwise-valid Supabase RLS policies that allow DELETE but do not
+        // allow returning deleted rows.
+        const { error } = await this.client
+          .from('products')
+          .delete()
+          .eq('id', id);
+        if (error) {
+          console.error('Failed to delete from Supabase:', error.message);
+          return {
+            success: false,
+            message: isProductsTableMissingError(error)
+              ? PRODUCTS_TABLE_SETUP_MESSAGE
+              : `Supabase delete failed: ${error.message}`
+          };
+        }
+
+        // RLS can make a delete affect zero rows without returning an error.
+        // Verify that the row is no longer visible before updating the cache.
+        const { data: remainingRow, error: verifyError } = await this.client
+          .from('products')
+          .select('id')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (verifyError || remainingRow) {
+          const message = verifyError
+            ? `Delete verification failed: ${verifyError.message}`
+            : 'Supabase refused the delete request. Check the DELETE policy for authenticated users.';
+          console.error('Supabase did not remove resource:', message);
+          return { success: false, message };
+        }
+      } catch (err) {
+        console.error('Failed to delete from Supabase:', err);
+        return { success: false, message: 'Supabase delete request failed unexpectedly.' };
       }
     }
 
-    return { success: true, data: resource, message: 'Resource saved successfully.' };
-  }
-
-  public async deleteResource(id: string): Promise<boolean> {
-    // 1. Delete from local storage
     const currentList = this.getLocalResourcesSync();
     const filtered = currentList.filter(r => r.id !== id);
     this.saveToLocalStorage(filtered);
-
-    // 2. Delete from Supabase if connected
-    if (this.client) {
-      try {
-        await this.client.from('products').delete().eq('id', id);
-      } catch (err) {
-        console.error('Failed to delete from Supabase:', err);
-      }
-    }
-
-    return true;
+    return { success: true };
   }
 
   public async recordDownload(id: string): Promise<void> {
@@ -417,16 +525,30 @@ class SupabaseService {
   }
 
   public async uploadFile(file: File, bucket = 'past-questions'): Promise<{ success: boolean; url: string; error?: string }> {
-    // 1. If Supabase client exists, attempt fast upload to Supabase Storage with 6-second timeout
+    // If Supabase is configured, a cloud URL is required. Persisting a blob:
+    // URL in the database makes the attachment work only in the current tab
+    // and leaves the public frontend unable to load it after a refresh.
     if (this.client) {
       try {
+        const { error: bucketError } = await this.client.storage.getBucket(bucket);
+        if (bucketError) {
+          return {
+            success: false,
+            url: '',
+            error: `Storage bucket "${bucket}" is unavailable: ${bucketError.message}. Run the Supabase storage migration.`
+          };
+        }
+
         const cleanName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         const uploadPromise = this.client.storage
           .from(bucket)
           .upload(cleanName, file, { cacheControl: '3600', upsert: true });
 
         const timeoutPromise = new Promise<any>((_, reject) =>
-          setTimeout(() => reject(new Error('Storage upload timeout')), 6000)
+          setTimeout(
+            () => reject(new Error(`Storage upload timed out after ${STORAGE_UPLOAD_TIMEOUT_MS / 1000} seconds`)),
+            STORAGE_UPLOAD_TIMEOUT_MS
+          )
         );
 
         const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
@@ -437,14 +559,18 @@ class SupabaseService {
             return { success: true, url: pubData.publicUrl };
           }
         } else if (error) {
-          console.warn('Supabase storage upload error, falling back to instant local URL:', error.message);
+          console.warn('Supabase storage upload error:', error.message);
+          return { success: false, url: '', error: error.message };
         }
       } catch (err: any) {
-        console.warn('Supabase storage exception or timeout, using instant fallback:', err?.message || err);
+        console.warn('Supabase storage exception:', err?.message || err);
+        return { success: false, url: '', error: err?.message || 'Storage upload failed.' };
       }
+
+      return { success: false, url: '', error: 'Supabase did not return a public file URL.' };
     }
 
-    // 2. Instant fallback:
+    // Local-only fallback:
     // If it's a small image (< 800KB), read as DataURL so it persists in previews
     if (file.type.startsWith('image/') && file.size < 800 * 1024) {
       try {
@@ -504,23 +630,47 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 -- 3. Policy: Allow public read access to all products
 DROP POLICY IF EXISTS "Public can view products" ON public.products;
+DROP POLICY IF EXISTS "Public Read Access" ON public.products;
 CREATE POLICY "Public can view products" 
 ON public.products 
 FOR SELECT 
 USING (true);
 
--- 4. Policy: Allow insert/update/delete (public / anon for demo administration)
+-- 4. Policies: authenticated admins can create, edit, and delete products
 DROP POLICY IF EXISTS "Anyone can insert or update products" ON public.products;
-CREATE POLICY "Anyone can insert or update products" 
+DROP POLICY IF EXISTS "Admin All Access" ON public.products;
+DROP POLICY IF EXISTS "Admins can insert products" ON public.products;
+DROP POLICY IF EXISTS "Admins can update products" ON public.products;
+DROP POLICY IF EXISTS "Admins can delete products" ON public.products;
+CREATE POLICY "Admins can insert products"
+ON public.products
+FOR INSERT TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Admins can update products"
 ON public.products 
-FOR ALL 
+FOR UPDATE TO authenticated
 USING (true)
 WITH CHECK (true);
+
+CREATE POLICY "Admins can delete products"
+ON public.products
+FOR DELETE TO authenticated
+USING (true);
+
+-- Refresh PostgREST's schema cache immediately after creating the table/policies
+NOTIFY pgrst, 'reload schema';
 
 -- 5. Create Storage Bucket for Past Questions & Covers
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('past-questions', 'past-questions', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- Allow the authenticated admin client to verify that the bucket exists
+DROP POLICY IF EXISTS "Admins can view past questions bucket" ON storage.buckets;
+CREATE POLICY "Admins can view past questions bucket"
+ON storage.buckets FOR SELECT TO authenticated
+USING ( id = 'past-questions' );
 
 -- 6. Storage Bucket Public Access Policy
 DROP POLICY IF EXISTS "Public Access for Past Questions" ON storage.objects;
@@ -529,8 +679,10 @@ ON storage.objects FOR SELECT
 USING ( bucket_id = 'past-questions' );
 
 DROP POLICY IF EXISTS "Public Uploads for Past Questions" ON storage.objects;
-CREATE POLICY "Public Uploads for Past Questions"
-ON storage.objects FOR INSERT
+DROP POLICY IF EXISTS "Admin Upload Access" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can upload past questions" ON storage.objects;
+CREATE POLICY "Admins can upload past questions"
+ON storage.objects FOR INSERT TO authenticated
 WITH CHECK ( bucket_id = 'past-questions' );
 `;
   }

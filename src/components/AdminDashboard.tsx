@@ -27,6 +27,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ success: boolean; text: string } | null>(null);
   
   // Supabase connection state
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(supabaseService.getConfig());
@@ -75,6 +76,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
 
   const openAddModal = () => {
     setEditingResource(null);
+    setActionMessage(null);
     setFormData({
       title: '',
       slug: '',
@@ -97,6 +99,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
 
   const openEditModal = (res: Resource) => {
     setEditingResource(res);
+    setActionMessage(null);
     setFormData({
       title: res.title,
       slug: res.slug,
@@ -124,6 +127,9 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     const result = await supabaseService.uploadFile(file, 'past-questions');
     if (result.success && result.url) {
       setFormData(prev => ({ ...prev, coverUrl: result.url }));
+      setActionMessage(null);
+    } else {
+      setActionMessage({ success: false, text: result.error || 'Cover upload failed.' });
     }
     setCoverUploading(false);
   };
@@ -139,6 +145,9 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
         fileUrl: result.url,
         fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
       }));
+      setActionMessage(null);
+    } else {
+      setActionMessage({ success: false, text: result.error || 'Document upload failed.' });
     }
     setFileUploading(false);
   };
@@ -148,6 +157,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     if (!formData.title.trim()) return;
 
     setIsSaving(true);
+    setActionMessage(null);
     try {
       const slug = formData.slug.trim() || formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const features = formData.featuresText
@@ -187,20 +197,34 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
         createdAt: editingResource ? editingResource.createdAt : new Date().toISOString()
       };
 
-      await supabaseService.saveResource(resourceToSave);
-      setIsSaving(false);
+      const result = await supabaseService.saveResource(resourceToSave);
+      if (!result.success) {
+        setActionMessage({ success: false, text: result.message || 'The resource could not be published.' });
+        return;
+      }
+
       setIsModalOpen(false);
       await onRefresh();
     } catch (err) {
       console.error('Save error:', err);
+      setActionMessage({ success: false, text: 'The resource could not be published. Please try again.' });
+    } finally {
       setIsSaving(false);
-      setIsModalOpen(false);
     }
   };
 
   const handleDeleteResource = async (id: string) => {
-    await supabaseService.deleteResource(id);
+    const result = await supabaseService.deleteResource(id);
     setDeleteConfirmId(null);
+    if (!result.success) {
+      setActionMessage({
+        success: false,
+        text: result.message || 'The resource was not deleted from Supabase.'
+      });
+      return;
+    }
+
+    setActionMessage({ success: true, text: 'Resource deleted successfully.' });
     await onRefresh();
   };
 
@@ -317,6 +341,19 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
 
       {/* Main Admin Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {actionMessage && !isModalOpen && (
+          <div className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
+            actionMessage.success
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}>
+            {actionMessage.success
+              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+              : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>{actionMessage.text}</span>
+          </div>
+        )}
         
         {/* Metric Summary Cards */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1005,6 +1042,19 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
               </div>
 
               {/* Buttons */}
+              {actionMessage && (
+                <div className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
+                  actionMessage.success
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}>
+                  {actionMessage.success
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{actionMessage.text}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
                 <button
                   type="button"

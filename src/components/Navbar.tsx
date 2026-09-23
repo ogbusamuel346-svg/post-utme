@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { BookOpen, Menu, X, Shield, Calculator, MessageSquare } from 'lucide-react';
+import { BookOpen, Menu, X } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
-  onOpenCalculator: () => void;
   onOpenSubjectCombinations: () => void;
   supabaseConnected: boolean;
 }
@@ -12,7 +11,6 @@ interface NavbarProps {
 export function Navbar({
   currentTab,
   onSelectTab,
-  onOpenCalculator,
   onOpenSubjectCombinations,
   supabaseConnected
 }: NavbarProps) {
@@ -81,13 +79,6 @@ export function Navbar({
             >
               Syllabus & Novels
             </button>
-            <button
-              onClick={onOpenCalculator}
-              className="text-slate-700 hover:text-[#0F294A] transition-colors whitespace-nowrap flex items-center gap-1.5"
-            >
-              <Calculator className="w-3.5 h-3.5 text-orange-500" />
-              <span>Aggregate Tool</span>
-            </button>
           </nav>
 
           {/* Zone 3: Primary actions */}
@@ -147,16 +138,6 @@ export function Navbar({
               className="text-left px-3 py-2 rounded-md text-sm font-medium text-slate-800 hover:bg-slate-100"
             >
               Syllabus & Novel Guides
-            </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenCalculator();
-              }}
-              className="text-left px-3 py-2 rounded-md text-sm font-medium text-slate-800 hover:bg-slate-100 flex items-center gap-2"
-            >
-              <Calculator className="w-4 h-4 text-orange-500" />
-              <span>Aggregate Score Calculator</span>
             </button>
             <button
               onClick={() => {

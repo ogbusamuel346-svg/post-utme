@@ -280,7 +280,6 @@ export default function App() {
           <Navbar
             currentTab={activeNavTab}
             onSelectTab={handleNavSelect}
-            onOpenCalculator={() => setIsCalculatorOpen(true)}
             onOpenSubjectCombinations={() => setIsSubjectCombinationOpen(true)}
             supabaseConnected={supabaseConnected}
           />

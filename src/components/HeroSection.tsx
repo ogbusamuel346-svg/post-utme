@@ -119,14 +119,14 @@ export function HeroSection({ onSearch, onSelectCategory }: HeroSectionProps) {
 
           {/* Right Column: Hero Visual Image */}
           <div className="lg:col-span-5">
-            <div className="relative mx-auto max-w-md lg:max-w-none">
+            <div className="relative mx-auto max-w-sm lg:max-w-none">
               
               {/* Main Photo Frame */}
-              <div className="relative rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl aspect-4/3 sm:aspect-16/10 lg:aspect-4/3 bg-slate-800">
+              <div className="relative rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl aspect-[2/3] bg-slate-800">
                 <img
                   src="/src/assets/images/hero_jamb_students_1790125894091.jpg"
-                  alt="Nigerian university students preparing for JAMB and Post-UTME examinations"
-                  className="w-full h-full object-cover"
+                  alt="Female Nigerian university student preparing for JAMB examinations"
+                  className="absolute inset-0 w-full h-full object-cover object-[35%_center] scale-[1.65] origin-[35%_58%]"
                   referrerPolicy="no-referrer"
                   loading="eager"
                 />
