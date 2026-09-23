@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import {
   ArrowLeft,
@@ -20,7 +20,7 @@ import {
 import { Resource } from '../types';
 import { ResourceCard } from './ResourceCard';
 import { recoverPayment } from '../services/paystack';
-import { getPurchaseHistory } from '../services/userDashboard';
+import { getPurchaseHistory, PURCHASES_UPDATED_EVENT, syncPurchaseHistory } from '../services/userDashboard';
 import type { LocalPurchase } from '../services/userDashboard';
 import { BRAND_LOGO_URL, BRAND_NAME } from '../config/branding';
 
@@ -52,12 +52,43 @@ export function UserDashboard({
   const [activeSection, setActiveSection] = useState<DashboardSection>('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [purchases, setPurchases] = useState<LocalPurchase[]>([]);
+  const [isSyncingPurchases, setIsSyncingPurchases] = useState(false);
+  const [purchaseSyncError, setPurchaseSyncError] = useState<string | null>(null);
   const [downloadingReference, setDownloadingReference] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setPurchases(user?.email ? getPurchaseHistory(user.email) : []);
+  const refreshPurchases = useCallback(async () => {
+    if (!user?.email) {
+      setPurchases([]);
+      setPurchaseSyncError(null);
+      return;
+    }
+
+    setIsSyncingPurchases(true);
+    setPurchaseSyncError(null);
+    try {
+      setPurchases(await syncPurchaseHistory(user.email));
+    } catch (error) {
+      setPurchases(getPurchaseHistory(user.email));
+      setPurchaseSyncError(error instanceof Error ? error.message : 'Your verified purchases could not be loaded.');
+    } finally {
+      setIsSyncingPurchases(false);
+    }
   }, [user?.email]);
+
+  useEffect(() => {
+    void refreshPurchases();
+
+    const handlePurchaseUpdate = (event: Event) => {
+      const purchase = (event as CustomEvent<LocalPurchase>).detail;
+      if (user?.email && purchase?.email?.trim().toLowerCase() === user.email.trim().toLowerCase()) {
+        setPurchases(getPurchaseHistory(user.email));
+      }
+    };
+
+    window.addEventListener(PURCHASES_UPDATED_EVENT, handlePurchaseUpdate);
+    return () => window.removeEventListener(PURCHASES_UPDATED_EVENT, handlePurchaseUpdate);
+  }, [refreshPurchases, user?.email]);
 
   const savedResources = useMemo(
     () => resources.filter(resource => savedIds.includes(resource.id)),
@@ -215,6 +246,16 @@ export function UserDashboard({
 
           {activeSection === 'materials' && (
             <section className="space-y-4">
+              <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Verified purchase history</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Purchases made with this account email are synced automatically after payment verification.</p>
+                </div>
+                <button onClick={() => void refreshPurchases()} disabled={isSyncingPurchases} className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                  {isSyncingPurchases ? 'Checking...' : 'Refresh purchases'}
+                </button>
+              </div>
+              {purchaseSyncError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{purchaseSyncError} Your locally saved purchases are still available below.</div>}
               {downloadError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{downloadError}</div>}
               {purchases.length === 0 ? (
                 <EmptyState icon={PackageOpen} title="No purchased materials yet" description="Your successful Paystack purchases will appear here for quick recovery and download." actionLabel="Browse materials" onAction={() => navigateTo('browse')} />

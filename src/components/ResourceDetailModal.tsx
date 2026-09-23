@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { Resource } from '../types';
 import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail } from 'lucide-react';
 import { supabaseService } from '../services/supabase';
@@ -7,11 +8,12 @@ import { rememberPurchase } from '../services/userDashboard';
 
 interface ResourceDetailModalProps {
   resource: Resource | null;
+  user?: User | null;
   onClose: () => void;
   onDownloaded?: (id: string) => void;
 }
 
-export function ResourceDetailModal({ resource, onClose, onDownloaded }: ResourceDetailModalProps) {
+export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: ResourceDetailModalProps) {
   if (!resource) return null;
 
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
@@ -20,11 +22,15 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [purchaseMode, setPurchaseMode] = useState<'details' | 'checkout' | 'success'>('details');
-  const [buyerEmail, setBuyerEmail] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState(user?.email || '');
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [recoveryReference, setRecoveryReference] = useState('');
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.email && !buyerEmail) setBuyerEmail(user.email);
+  }, [user?.email, buyerEmail]);
 
   const handleDownload = async (fileUrlOverride?: string) => {
     setDownloading(true);

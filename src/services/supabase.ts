@@ -118,6 +118,11 @@ class SupabaseService {
     }
   }
 
+  public async getAccessToken(): Promise<string | null> {
+    const session = await this.getSession();
+    return session?.access_token || null;
+  }
+
   public async getCurrentUser(): Promise<User | null> {
     if (!this.client) return null;
     try {

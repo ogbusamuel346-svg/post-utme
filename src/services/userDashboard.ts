@@ -1,3 +1,6 @@
+import { getAuthenticatedPurchaseHistory } from './paystack';
+import { supabaseService } from './supabase';
+
 export interface LocalPurchase {
   reference: string;
   email: string;
@@ -8,6 +11,7 @@ export interface LocalPurchase {
 
 const SAVED_MATERIALS_PREFIX = 'sam_edu_hub_saved_materials:';
 const PURCHASES_PREFIX = 'sam_edu_hub_purchases:';
+export const PURCHASES_UPDATED_EVENT = 'sam-edu-hub-purchases-updated';
 
 const readJson = <T>(key: string, fallback: T): T => {
   try {
@@ -32,10 +36,33 @@ export const getPurchaseHistory = (email: string): LocalPurchase[] => {
   return Array.isArray(value) ? value as LocalPurchase[] : [];
 };
 
+export const mergePurchaseHistory = (email: string, purchases: LocalPurchase[]): LocalPurchase[] => {
+  const existing = getPurchaseHistory(email);
+  const byReference = new Map<string, LocalPurchase>();
+
+  [...purchases, ...existing].forEach((purchase) => {
+    if (purchase?.reference) byReference.set(purchase.reference, purchase);
+  });
+
+  const next = Array.from(byReference.values())
+    .sort((a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime())
+    .slice(0, 50);
+  localStorage.setItem(`${PURCHASES_PREFIX}${email.trim().toLowerCase()}`, JSON.stringify(next));
+  return next;
+};
+
 export const rememberPurchase = (purchase: LocalPurchase): void => {
-  const key = `${PURCHASES_PREFIX}${purchase.email.trim().toLowerCase()}`;
-  const existing = getPurchaseHistory(purchase.email);
-  const next = [purchase, ...existing.filter(item => item.reference !== purchase.reference)].slice(0, 50);
-  localStorage.setItem(key, JSON.stringify(next));
+  mergePurchaseHistory(purchase.email, [purchase]);
   localStorage.setItem('sam_edu_hub_last_purchase', JSON.stringify(purchase));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent<LocalPurchase>(PURCHASES_UPDATED_EVENT, { detail: purchase }));
+  }
+};
+
+export const syncPurchaseHistory = async (email: string): Promise<LocalPurchase[]> => {
+  const accessToken = await supabaseService.getAccessToken();
+  if (!accessToken) return getPurchaseHistory(email);
+
+  const verifiedPurchases = await getAuthenticatedPurchaseHistory(accessToken);
+  return mergePurchaseHistory(email, verifiedPurchases);
 };

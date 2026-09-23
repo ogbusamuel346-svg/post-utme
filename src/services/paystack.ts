@@ -1,3 +1,5 @@
+import type { LocalPurchase } from './userDashboard';
+
 export interface PaymentInitialization {
   success: true;
   reference: string;
@@ -21,17 +23,25 @@ interface PendingPaymentResponse {
   message: string;
 }
 
-type PaymentResponse = PaymentInitialization | DownloadGrant | PendingPaymentResponse;
+interface PurchaseHistoryResponse {
+  success: true;
+  purchases: LocalPurchase[];
+}
+
+type PaymentResponse = PaymentInitialization | DownloadGrant | PendingPaymentResponse | PurchaseHistoryResponse;
 
 const PAYMENT_API_URL = import.meta.env.VITE_PAYSTACK_API_URL || '/api/paystack';
 const PAYSTACK_SCRIPT_URL = 'https://js.paystack.co/v2/inline.js';
 
 let paystackScriptPromise: Promise<void> | null = null;
 
-const callPaymentApi = async (payload: Record<string, unknown>): Promise<PaymentResponse> => {
+const callPaymentApi = async (payload: Record<string, unknown>, accessToken?: string): Promise<PaymentResponse> => {
   const response = await fetch(PAYMENT_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
     body: JSON.stringify(payload)
   });
 
@@ -58,6 +68,14 @@ export const verifyPayment = async (reference: string, email: string): Promise<D
 export const recoverPayment = async (reference: string, email: string): Promise<DownloadGrant | PendingPaymentResponse> => {
   const result = await callPaymentApi({ action: 'recover', reference, email });
   return result as DownloadGrant | PendingPaymentResponse;
+};
+
+export const getAuthenticatedPurchaseHistory = async (accessToken: string): Promise<LocalPurchase[]> => {
+  const result = await callPaymentApi({ action: 'history' }, accessToken);
+  if (!('purchases' in result) || !Array.isArray(result.purchases)) {
+    throw new Error('Your purchase history could not be loaded. Please try again.');
+  }
+  return result.purchases;
 };
 
 export const getFreeDownload = async (productId: string): Promise<DownloadGrant> => {

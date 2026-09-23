@@ -769,6 +769,7 @@ export default function App() {
     {/* Resource Detail Modal */}
       <ResourceDetailModal
         resource={selectedResource}
+        user={adminUser}
         onClose={() => setSelectedResource(null)}
         onDownloaded={(id) => {
           setResources(prev => prev.map(r => r.id === id ? { ...r, downloadsCount: (r.downloadsCount || 0) + 1 } : r));

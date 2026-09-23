@@ -60,6 +60,22 @@ const getSupabaseAdmin = () => {
   });
 };
 
+const getAuthenticatedEmail = async (
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  req: ApiRequest
+): Promise<string> => {
+  const authorization = getHeader(req, 'authorization');
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) throw new Error('Sign in to view your purchase history.');
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user?.email) throw new Error('Your sign-in session could not be verified.');
+
+  const email = normalizeEmail(data.user.email);
+  assertEmail(email);
+  return email;
+};
+
 const setCorsHeaders = (req: ApiRequest, res: ApiResponse) => {
   const origin = getHeader(req, 'origin');
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
@@ -154,6 +170,50 @@ const getDownloadGrant = async (supabase: ReturnType<typeof getSupabaseAdmin>, o
     fileSize: product.file_size || '',
     format: product.format || 'PDF'
   };
+};
+
+const getVerifiedPurchaseHistory = async (
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  secretKey: string,
+  email: string
+) => {
+  const { data, error } = await supabase
+    .from('purchase_orders')
+    .select('id, reference, product_id, email, amount_kobo, currency, status, paid_at')
+    .ilike('email', email)
+    .in('status', ['paid', 'pending'])
+    .order('paid_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw new Error(`Could not load your purchase history: ${error.message}`);
+
+  const purchases = (await Promise.all((data || []).map(async (row: any) => {
+    let order = row as Order;
+
+    // A guest checkout can remain pending if the browser lost connection
+    // after Paystack accepted the payment. Re-check those references when a
+    // signed-in student opens the dashboard so verified purchases are linked.
+    if (order.status !== 'paid') {
+      try {
+        const result = await verifyWithPaystack(supabase, secretKey, order.reference, email);
+        if (!('fileUrl' in result) || !result.fileUrl) return null;
+        order = await getOrder(supabase, order.reference);
+      } catch {
+        return null;
+      }
+    }
+
+    const product = await getProduct(supabase, order.product_id);
+    return {
+      reference: order.reference,
+      email: normalizeEmail(order.email),
+      title: product.title,
+      productId: product.id,
+      purchasedAt: order.paid_at || new Date().toISOString()
+    };
+  }))).filter(Boolean);
+
+  return { success: true, purchases };
 };
 
 const getFreeDownloadGrant = async (supabase: ReturnType<typeof getSupabaseAdmin>, productId: string) => {
@@ -353,6 +413,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     const action = String(body.action || '');
+    if (action === 'history') {
+      const email = await getAuthenticatedEmail(supabase, req);
+      json(res, 200, await getVerifiedPurchaseHistory(supabase, secretKey, email));
+      return;
+    }
+
     if (action === 'initialize') {
       const productId = String(body.productId || '').trim();
       const email = normalizeEmail(body.email);
