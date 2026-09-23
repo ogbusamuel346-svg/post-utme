@@ -15,69 +15,84 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [downloading, setDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [purchaseMode, setPurchaseMode] = useState<'details' | 'checkout' | 'success'>('details');
 
   const handleDownload = async () => {
     setDownloading(true);
-    await supabaseService.recordDownload(resource.id);
-    if (onDownloaded) onDownloaded(resource.id);
+    setDownloadSuccess(false);
+    setDownloadError(null);
 
-    // Generate real readable educational study past question file
-    const content = `================================================================================
-EDUPREP & JAMB/POST-UTME VERIFIED STUDY COMPANION
-Resource: ${resource.title}
-Institution: ${resource.institution || 'National UTME Standard'}
-Subject: ${resource.subject || 'Comprehensive'}
-Year Span: ${resource.yearRange}
-Format: ${resource.format}
-================================================================================
+    try {
+      const fileUrl = resource.fileUrl?.trim();
+      if (!fileUrl) {
+        throw new Error('This resource does not have an uploaded file attached yet.');
+      }
 
-OVERVIEW & SYLLABUS DIRECTIVE:
-${resource.description}
+      // Fetch the actual uploaded file so the browser downloads its original
+      // bytes and extension instead of creating a generated text file.
+      let downloadUrl = fileUrl;
+      let revokeDownloadUrl = false;
+      let contentType = '';
 
-CORE EXAMINATION FEATURES:
-${resource.features.map((f, i) => `[${i + 1}] ${f}`).join('\n')}
+      try {
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error(`The uploaded file could not be fetched (${response.status}).`);
+        }
+        const fileBlob = await response.blob();
+        contentType = fileBlob.type;
+        downloadUrl = URL.createObjectURL(fileBlob);
+        revokeDownloadUrl = true;
+      } catch (fetchError) {
+        // Some manually supplied third-party links do not allow CORS fetches.
+        // Let the browser open/download that real URL directly as a fallback.
+        if (!/^https?:\/\//i.test(fileUrl) && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) {
+          throw fetchError;
+        }
+      }
 
---------------------------------------------------------------------------------
-VERIFIED SAMPLE PAST QUESTIONS & STEP-BY-STEP EXPLANATIONS:
---------------------------------------------------------------------------------
-${(resource.sampleQuestions || []).map((q, idx) => `
-QUESTION ${idx + 1}:
-${q.question}
+      const parsedUrl = (() => {
+        try {
+          return new URL(fileUrl, window.location.href);
+        } catch {
+          return null;
+        }
+      })();
+      const pathName = parsedUrl?.pathname || fileUrl;
+      const originalName = decodeURIComponent(pathName.split('/').pop() || '').split('?')[0];
+      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(originalName);
+      const extension = contentType.includes('word')
+        ? '.docx'
+        : contentType.includes('text')
+          ? '.txt'
+          : '.pdf';
+      const downloadName = hasExtension
+        ? originalName
+        : `${resource.slug || 'edujamb-resource'}${extension}`;
 
-OPTIONS:
-${q.options.map((opt, oi) => `  (${String.fromCharCode(65 + oi)}) ${opt}`).join('\n')}
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = downloadName;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-VERIFIED CORRECT ANSWER: ${q.answer}
-STEP-BY-STEP RATIONALE & WORKINGS:
-${q.explanation}
---------------------------------------------------------------------------------
-`).join('')}
+      if (revokeDownloadUrl) {
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      }
 
-OFFICIAL EXAM PREPARATION TIPS FROM SCHOLARS:
-1. Speed Strategy: Allocate not more than 40 seconds per question on Use of English.
-2. Negative Marking: Do not leave blanks if your university does not penalize incorrect answers.
-3. Post-UTME Aggregate: Ensure you have your original JAMB slip and O'Level printout ready.
-4. For questions or WhatsApp study support, reach out to EduJAMB Student Desk: https://wa.me/2348030009988
-
-(c) EduJAMB Academic Publications. All rights reserved.
-`;
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${resource.slug || 'edujamb-resource'}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setTimeout(() => {
-      setDownloading(false);
+      await supabaseService.recordDownload(resource.id);
+      if (onDownloaded) onDownloaded(resource.id);
       setDownloadSuccess(true);
-    }, 800);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'The uploaded file could not be downloaded.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handleWhatsAppOrder = () => {
@@ -96,9 +111,6 @@ OFFICIAL EXAM PREPARATION TIPS FROM SCHOLARS:
   const simulateOnlinePayment = () => {
     setDownloading(true);
     setTimeout(async () => {
-      await supabaseService.recordDownload(resource.id);
-      if (onDownloaded) onDownloaded(resource.id);
-      setDownloading(false);
       setPurchaseMode('success');
       handleDownload();
     }, 1200);
@@ -232,7 +244,7 @@ OFFICIAL EXAM PREPARATION TIPS FROM SCHOLARS:
                     className="w-full py-3.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
                   >
                     <Download className="w-5 h-5" />
-                    <span>{downloading ? 'Preparing Verified PDF...' : 'Download Free Past Questions'}</span>
+                    <span>{downloading ? 'Downloading Uploaded File...' : 'Download Free Past Questions'}</span>
                   </button>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -258,7 +270,14 @@ OFFICIAL EXAM PREPARATION TIPS FROM SCHOLARS:
                 {downloadSuccess && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Download started! Check your browser downloads folder for your past questions file.</span>
+                    <span>Download started! Check your browser downloads folder for the uploaded material.</span>
+                  </div>
+                )}
+
+                {downloadError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{downloadError}</span>
                   </div>
                 )}
 
