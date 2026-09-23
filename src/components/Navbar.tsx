@@ -22,11 +22,17 @@ export function Navbar({
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'My Profile';
+  const officialSyllabusUrl = 'https://ibass.jamb.gov.ng/e-syllabus';
 
   const handleNavClick = (tab: string) => {
     onSelectTab(tab);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSyllabusClick = () => {
+    setMobileMenuOpen(false);
+    window.location.assign(officialSyllabusUrl);
   };
 
   return (
@@ -79,7 +85,7 @@ export function Navbar({
               Post-UTME
             </button>
             <button
-              onClick={() => handleNavClick('syllabus_novel')}
+              onClick={handleSyllabusClick}
               className={`transition-colors whitespace-nowrap hover:text-[#0F294A] ${
                 currentTab === 'syllabus_novel' ? 'text-[#0F294A] font-semibold' : ''
               }`}
@@ -149,7 +155,7 @@ export function Navbar({
               Post-UTME Past Questions
             </button>
             <button
-              onClick={() => handleNavClick('syllabus_novel')}
+              onClick={handleSyllabusClick}
               className="text-left px-3 py-2 rounded-md text-sm font-medium text-slate-800 hover:bg-slate-100"
             >
               Syllabus & Novel Guides
