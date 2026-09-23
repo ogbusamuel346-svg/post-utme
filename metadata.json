@@ -1,0 +1,7 @@
+{
+  "name": "EduJAMB - JAMB & Post-UTME Past Questions & Educational Resources",
+  "description": "Premium educational portal for Nigerian students preparing for JAMB UTME and university Post-UTME examinations with verified past questions, syllabus guides, and student tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
