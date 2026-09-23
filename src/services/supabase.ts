@@ -697,6 +697,9 @@ ALTER TABLE public.purchase_orders ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS purchase_orders_reference_idx ON public.purchase_orders(reference);
 CREATE INDEX IF NOT EXISTS purchase_orders_email_idx ON public.purchase_orders(lower(email));
 
+-- Refresh PostgREST after creating the payment table so the Vercel API can see it immediately
+NOTIFY pgrst, 'reload schema';
+
 -- 6. Create Storage Buckets
 -- past-questions is kept public for legacy records. New covers go to the
 -- public site-assets bucket, while new paid materials go to private storage.
