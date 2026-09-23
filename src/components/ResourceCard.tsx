@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Resource } from '../types';
-import { Download, Star, FileText, ArrowRight, Check } from 'lucide-react';
+import { Download, Star, FileText, ArrowRight, Heart } from 'lucide-react';
 
 interface ResourceCardProps {
   resource: Resource;
   onSelect: (resource: Resource) => void;
   onQuickDownload?: (resource: Resource) => void;
+  isSaved?: boolean;
+  onToggleSaved?: (resource: Resource) => void;
 }
 
-export function ResourceCard({ resource, onSelect, onQuickDownload }: ResourceCardProps) {
+export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = false, onToggleSaved }: ResourceCardProps) {
   const [imgError, setImgError] = useState(false);
 
   const getCategoryLabel = (cat: string) => {
@@ -70,6 +72,25 @@ export function ResourceCard({ resource, onSelect, onQuickDownload }: ResourceCa
             </span>
           )}
         </div>
+
+        {onToggleSaved && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSaved(resource);
+            }}
+            title={isSaved ? 'Remove from saved materials' : 'Save material'}
+            aria-label={isSaved ? 'Remove from saved materials' : 'Save material'}
+            className={`absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-colors ${
+              isSaved
+                ? 'border-rose-200 bg-rose-50 text-rose-600'
+                : 'border-white/70 bg-white/90 text-slate-500 hover:text-rose-600'
+            }`}
+          >
+            <Heart className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
+          </button>
+        )}
       </div>
 
       {/* Content Area */}

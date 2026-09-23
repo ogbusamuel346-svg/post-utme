@@ -3,6 +3,7 @@ import { Resource } from '../types';
 import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail } from 'lucide-react';
 import { supabaseService } from '../services/supabase';
 import { initializePayment, openPaystackCheckout, waitForPayment, recoverPayment, getFreeDownload } from '../services/paystack';
+import { rememberPurchase } from '../services/userDashboard';
 
 interface ResourceDetailModalProps {
   resource: Resource | null;
@@ -153,13 +154,13 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
       paymentReference = initialized.reference;
       await openPaystackCheckout(initialized.accessCode);
       const grant = await waitForPayment(initialized.reference, email);
-      localStorage.setItem('sam_edu_hub_last_purchase', JSON.stringify({
+      rememberPurchase({
         reference: grant.reference,
         email,
         title: grant.title,
         productId: grant.productId,
         purchasedAt: new Date().toISOString()
-      }));
+      });
       setPurchaseMode('success');
       await handleDownload(grant.fileUrl);
     } catch (error) {
@@ -194,13 +195,13 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
       if (!('fileUrl' in result) || !result.fileUrl) {
         throw new Error(('message' in result && result.message) || 'This payment is still being confirmed. Please try again shortly.');
       }
-      localStorage.setItem('sam_edu_hub_last_purchase', JSON.stringify({
+      rememberPurchase({
         reference: result.reference,
         email,
         title: result.title,
         productId: result.productId,
         purchasedAt: new Date().toISOString()
-      }));
+      });
       await handleDownload(result.fileUrl);
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : 'The previous purchase could not be recovered.');

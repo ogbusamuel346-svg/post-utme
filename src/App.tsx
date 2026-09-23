@@ -11,10 +11,12 @@ import { SubjectCombinationModal } from './components/SubjectCombinationModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
 import { UserAuthModal } from './components/UserAuthModal';
+import { UserDashboard } from './components/UserDashboard';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { Footer } from './components/Footer';
 import { SEOHead } from './components/SEOHead';
 import { INSTITUTIONS_LIST } from './data/initialResources';
+import { getSavedMaterialIds, saveMaterialIds } from './services/userDashboard';
 import { 
   Search, Filter, BookOpen, Calculator, GraduationCap, 
   CheckCircle, ArrowRight, Star, Download, ChevronRight,
@@ -35,6 +37,13 @@ const checkIsAdminPath = (): boolean => {
   );
 };
 
+const checkIsUserDashboardPath = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  return path === '/dashboard' || path.startsWith('/dashboard/') || params.get('view') === 'dashboard';
+};
+
 export default function App() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +51,11 @@ export default function App() {
   
   // Navigation & Route states
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => checkIsAdminPath());
+  const [isUserDashboardRoute, setIsUserDashboardRoute] = useState<boolean>(() => checkIsUserDashboardPath());
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState<boolean>(true);
   const [activeNavTab, setActiveNavTab] = useState<string>('home');
+  const [savedMaterialIds, setSavedMaterialIds] = useState<string[]>([]);
 
   // Modals
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
@@ -75,6 +86,7 @@ export default function App() {
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(checkIsAdminPath());
+      setIsUserDashboardRoute(checkIsUserDashboardPath());
     };
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
@@ -104,6 +116,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setSavedMaterialIds(adminUser ? getSavedMaterialIds(adminUser.id) : []);
+  }, [adminUser?.id]);
+
+  useEffect(() => {
     loadResources();
 
     // Check URL parameters for direct resource link
@@ -121,7 +137,15 @@ export default function App() {
   const handleBackToSite = () => {
     window.history.pushState({}, '', '/');
     setIsAdminRoute(false);
+    setIsUserDashboardRoute(false);
     setActiveNavTab('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavigateToDashboard = () => {
+    window.history.pushState({}, '', '/dashboard');
+    setIsAdminRoute(false);
+    setIsUserDashboardRoute(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -134,6 +158,28 @@ export default function App() {
   const handleAdminSignOut = async () => {
     await supabaseService.signOut();
     setAdminUser(null);
+  };
+
+  const handleUserLogout = async () => {
+    await supabaseService.signOut();
+    setAdminUser(null);
+    setIsUserDashboardRoute(false);
+    window.history.pushState({}, '', '/');
+    setActiveNavTab('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleToggleSaved = (resource: Resource) => {
+    if (!adminUser) {
+      setIsUserAuthOpen(true);
+      return;
+    }
+
+    const nextIds = savedMaterialIds.includes(resource.id)
+      ? savedMaterialIds.filter(id => id !== resource.id)
+      : [...savedMaterialIds, resource.id];
+    setSavedMaterialIds(nextIds);
+    saveMaterialIds(adminUser.id, nextIds);
   };
 
   // Filter logic
@@ -276,6 +322,24 @@ export default function App() {
             onSignOut={handleAdminSignOut}
           />
         )
+      ) : isUserDashboardRoute ? (
+        authChecking ? (
+          <div className="flex min-h-screen items-center justify-center bg-slate-100">
+            <Loader2 className="h-7 w-7 animate-spin text-orange-600" />
+          </div>
+        ) : (
+          <UserDashboard
+            user={adminUser}
+            resources={resources}
+            savedIds={savedMaterialIds}
+            onToggleSaved={handleToggleSaved}
+            onSelectResource={(resource) => setSelectedResource(resource)}
+            onOpenAuth={() => setIsUserAuthOpen(true)}
+            onOpenProfile={() => setIsUserAuthOpen(true)}
+            onNavigateHome={handleBackToSite}
+            onLogout={handleUserLogout}
+          />
+        )
       ) : (
         <>
           {/* Public Top Navbar */}
@@ -285,7 +349,7 @@ export default function App() {
             onOpenSubjectCombinations={() => setIsSubjectCombinationOpen(true)}
             supabaseConnected={supabaseConnected}
             user={adminUser}
-            onOpenAuth={() => setIsUserAuthOpen(true)}
+            onOpenAuth={() => adminUser ? handleNavigateToDashboard() : setIsUserAuthOpen(true)}
           />
 
           <main className="flex-1">
@@ -522,6 +586,8 @@ export default function App() {
                     resource={resource}
                     onSelect={(res) => setSelectedResource(res)}
                     onQuickDownload={(res) => setSelectedResource(res)}
+                    isSaved={savedMaterialIds.includes(resource.id)}
+                    onToggleSaved={handleToggleSaved}
                   />
                 ))}
               </div>
