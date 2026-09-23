@@ -18,6 +18,7 @@ A modern, high-performance web application designed for Nigerian students prepar
   - **University Aggregate Score Calculator:** Calculate 50:50, 60:40, and custom admission screening aggregate scores for UNILAG, UI, OAU, UNN, ABU, etc.
   - **JAMB Subject Combination Checker:** Verify correct 4-subject UTME requirements across faculties (Medicine, Engineering, Law, Social Sciences, Arts).
 - **Direct WhatsApp Order Integration:** One-click pre-filled WhatsApp ordering and customer support for students across Nigeria.
+- **Guest Paystack Checkout:** Students pay without creating an account, receive the real uploaded material after server-side verification, and can recover a previous purchase with their email and Paystack reference.
 
 ---
 
@@ -26,7 +27,8 @@ A modern, high-performance web application designed for Nigerian students prepar
 - **Frontend:** React 19, TypeScript, Vite
 - **Styling:** Tailwind CSS, Lucide React Icons, Motion
 - **Backend & Database:** Supabase (PostgreSQL, Supabase Storage, Supabase Auth)
-- **Deployment Ready:** Vercel, Netlify, Cloud Run, or any static/Node.js hosting
+- **Payments:** Paystack server-side initialization, verification, and signed download access
+- **Deployment Ready:** Vercel (frontend plus `/api/paystack` serverless endpoint)
 
 ---
 
@@ -56,6 +58,15 @@ VITE_SUPABASE_URL=https://your-project-id.supabase.co
 
 # Supabase Anonymous Public API Key (from Project Settings -> API)
 VITE_SUPABASE_ANON_KEY=your-anon-public-key
+
+# Same-origin payment API for Vercel
+VITE_PAYSTACK_API_URL=/api/paystack
+
+# Server-only variables: add these to Vercel Project Settings -> Environment Variables.
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+PAYSTACK_SECRET_KEY=sk_test_your-paystack-secret-key
+APP_URL=https://your-deployed-domain.example
 ```
 
 ### 4. Run Development Server
@@ -71,69 +82,20 @@ Open your browser at `http://localhost:3000` (or `http://localhost:5173`).
 If you wish to synchronize products with a Supabase cloud database:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Go to the **SQL Editor** in your Supabase dashboard and run the following script:
+2. Go to **Admin -> Supabase Settings** in the app, copy the complete generated migration, and run it in the **SQL Editor** in your Supabase dashboard. It creates the products table, private purchase records, the public cover bucket, and the private paid-materials bucket.
 
-```sql
--- Create products table
-CREATE TABLE IF NOT EXISTS products (
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE NOT NULL,
-  title TEXT NOT NULL,
-  category TEXT NOT NULL,
-  institution TEXT NOT NULL,
-  subject TEXT,
-  year_range TEXT,
-  price NUMERIC DEFAULT 0,
-  is_free BOOLEAN DEFAULT false,
-  cover_url TEXT,
-  file_url TEXT,
-  file_size TEXT,
-  page_count INTEGER,
-  format TEXT DEFAULT 'PDF',
-  description TEXT,
-  features JSONB DEFAULT '[]'::jsonb,
-  downloads_count INTEGER DEFAULT 0,
-  rating NUMERIC DEFAULT 5.0,
-  review_count INTEGER DEFAULT 0,
-  is_featured BOOLEAN DEFAULT false,
-  sample_questions JSONB DEFAULT '[]'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
--- Allow public read access to active products
-CREATE POLICY "Public Read Access"
-  ON products FOR SELECT
-  USING (true);
-
--- Allow authenticated admins to insert, update, and delete
-CREATE POLICY "Admin All Access"
-  ON products FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
-
--- Create storage bucket for past questions
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('past-questions', 'past-questions', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Storage public read policy
-CREATE POLICY "Public Download Access"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'past-questions');
-
--- Storage admin upload policy
-CREATE POLICY "Admin Upload Access"
-  ON storage.objects FOR INSERT
-  TO authenticated
-  WITH CHECK (bucket_id = 'past-questions');
-```
+The application-generated migration is the source of truth. It also includes the RLS rules needed for the admin upload/delete workflow and should be preferred over an older hand-written schema.
 
 3. Go to **Authentication -> Users** in Supabase and create your staff admin user account.
 4. Navigate to `/admin` in the app and sign in with your admin credentials.
+
+### Paystack deployment setup
+
+1. Add the Paystack test or live **secret key** as `PAYSTACK_SECRET_KEY` in Vercel Project Settings -> Environment Variables. Never expose this key with a `VITE_` prefix.
+2. Add `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, and `APP_URL` to the same Vercel environment settings. The service-role key is used only by `/api/paystack` and must not be put in frontend code.
+3. Redeploy after saving the variables. The payment button initializes a transaction on the server, opens Paystack InlineJS in the browser, verifies the amount/reference on the server, then issues the download link.
+4. In Paystack Dashboard -> API Keys & Webhooks, set the webhook URL to `https://your-deployed-domain.example/api/paystack`. The endpoint validates Paystack's signature and records successful payments even if the buyer loses connection after paying.
+5. Buyers only enter an email address; they do not need an account. If a download is interrupted, they can reopen any paid resource, choose **Already paid? Recover your download**, and provide the same email plus the Paystack reference.
 
 ---
 
@@ -170,6 +132,8 @@ git push -u origin main
 ├── .env.example          # Environment variables template for team / CI
 ├── .gitignore            # Git exclusion rules
 ├── index.html            # HTML entry point with educational SEO meta
+├── api/
+│   └── paystack.ts        # Server-side payment initialize, verify, webhook & recovery
 ├── package.json          # Node dependencies & npm scripts
 ├── README.md             # Project documentation
 ├── tsconfig.json         # TypeScript compiler configuration

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Resource } from '../types';
-import { X, Download, Star, CheckCircle, FileText, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Copy, Check } from 'lucide-react';
+import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail } from 'lucide-react';
 import { supabaseService } from '../services/supabase';
+import { initializePayment, openPaystackCheckout, waitForPayment, recoverPayment, getFreeDownload } from '../services/paystack';
 
 interface ResourceDetailModalProps {
   resource: Resource | null;
@@ -18,14 +19,19 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [purchaseMode, setPurchaseMode] = useState<'details' | 'checkout' | 'success'>('details');
+  const [buyerEmail, setBuyerEmail] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryReference, setRecoveryReference] = useState('');
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownload = async (fileUrlOverride?: string) => {
     setDownloading(true);
     setDownloadSuccess(false);
     setDownloadError(null);
 
     try {
-      const fileUrl = resource.fileUrl?.trim();
+      const fileUrl = (fileUrlOverride || resource.fileUrl)?.trim();
       if (!fileUrl) {
         throw new Error('This resource does not have an uploaded file attached yet.');
       }
@@ -102,18 +108,105 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
     window.open(`https://wa.me/2349162193327?text=${text}`, '_blank');
   };
 
+  const handleFreeDownload = async () => {
+    setDownloading(true);
+    setDownloadSuccess(false);
+    setDownloadError(null);
+    try {
+      const storedUrl = resource.fileUrl?.trim() || '';
+      const isPrivateMaterial = /\/storage\/v1\/object\/(?:public|sign)\/paid-materials\//i.test(storedUrl);
+      // Keep local/demo resources and legacy public links usable without the
+      // payment API. New private-bucket files use the server grant below.
+      if (storedUrl && !isPrivateMaterial) {
+        await handleDownload();
+        return;
+      }
+      const grant = await getFreeDownload(resource.id);
+      await handleDownload(grant.fileUrl);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'The free material could not be downloaded.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.origin + `?resource=${resource.slug}`);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const simulateOnlinePayment = () => {
+  const handlePaystackPayment = async () => {
+    const email = buyerEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setDownloadError('Enter a valid email address. We use it to recover your purchase if the network interrupts the download.');
+      return;
+    }
+
     setDownloading(true);
-    setTimeout(async () => {
+    setDownloadSuccess(false);
+    setDownloadError(null);
+
+    let paymentReference = '';
+    try {
+      const initialized = await initializePayment(resource.id, email);
+      paymentReference = initialized.reference;
+      await openPaystackCheckout(initialized.accessCode);
+      const grant = await waitForPayment(initialized.reference, email);
+      localStorage.setItem('sam_edu_hub_last_purchase', JSON.stringify({
+        reference: grant.reference,
+        email,
+        title: grant.title,
+        productId: grant.productId,
+        purchasedAt: new Date().toISOString()
+      }));
       setPurchaseMode('success');
-      handleDownload();
-    }, 1200);
+      await handleDownload(grant.fileUrl);
+    } catch (error) {
+      if (paymentReference) {
+        setRecoveryEmail(email);
+        setRecoveryReference(paymentReference);
+        setShowRecovery(true);
+      }
+      setDownloadError(error instanceof Error ? error.message : 'Payment could not be completed.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleRecoverPurchase = async () => {
+    const email = recoveryEmail.trim().toLowerCase();
+    const reference = recoveryReference.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setDownloadError('Enter the email address used for the Paystack payment.');
+      return;
+    }
+    if (!reference) {
+      setDownloadError('Enter the Paystack payment reference from your receipt.');
+      return;
+    }
+
+    setRecoveryLoading(true);
+    setDownloadError(null);
+    setDownloadSuccess(false);
+    try {
+      const result = await recoverPayment(reference, email);
+      if (!('fileUrl' in result) || !result.fileUrl) {
+        throw new Error(('message' in result && result.message) || 'This payment is still being confirmed. Please try again shortly.');
+      }
+      localStorage.setItem('sam_edu_hub_last_purchase', JSON.stringify({
+        reference: result.reference,
+        email,
+        title: result.title,
+        productId: result.productId,
+        purchasedAt: new Date().toISOString()
+      }));
+      await handleDownload(result.fileUrl);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'The previous purchase could not be recovered.');
+    } finally {
+      setRecoveryLoading(false);
+    }
   };
 
   return (
@@ -239,7 +332,7 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
               <div className="space-y-3 pt-2">
                 {resource.isFree ? (
                   <button
-                    onClick={handleDownload}
+                    onClick={handleFreeDownload}
                     disabled={downloading}
                     className="w-full py-3.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
                   >
@@ -247,14 +340,33 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
                     <span>{downloading ? 'Downloading Uploaded File...' : 'Download Free Past Questions'}</span>
                   </button>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="buyer-email" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Email for payment receipt and recovery
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          id="buyer-email"
+                          type="email"
+                          value={buyerEmail}
+                          onChange={(e) => setBuyerEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                          autoComplete="email"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
-                      onClick={simulateOnlinePayment}
+                      onClick={handlePaystackPayment}
                       disabled={downloading}
                       className="py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                     >
                       <Download className="w-4 h-4 text-orange-400" />
-                      <span>{downloading ? 'Processing...' : 'Instant Download (₦' + resource.price.toLocaleString() + ')'}</span>
+                      <span>{downloading ? 'Confirming payment...' : 'Pay & Download (₦' + resource.price.toLocaleString() + ')'}</span>
                     </button>
                     
                     <button
@@ -265,12 +377,56 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
                       <span>Order on WhatsApp</span>
                     </button>
                   </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRecovery(!showRecovery)}
+                      className="mx-auto flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-orange-700 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      {showRecovery ? 'Hide purchase recovery' : 'Already paid? Recover your download'}
+                    </button>
+
+                    {showRecovery && (
+                      <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Recover a previous purchase</p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            Enter the same email and the Paystack reference from your receipt. No account or sign-in is required.
+                          </p>
+                        </div>
+                        <input
+                          type="email"
+                          value={recoveryEmail}
+                          onChange={(e) => setRecoveryEmail(e.target.value)}
+                          placeholder="Payment email"
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                          autoComplete="email"
+                        />
+                        <input
+                          type="text"
+                          value={recoveryReference}
+                          onChange={(e) => setRecoveryReference(e.target.value)}
+                          placeholder="Paystack reference e.g. SEH-..."
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRecoverPurchase}
+                          disabled={recoveryLoading || downloading}
+                          className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-orange-700 disabled:bg-slate-400 cursor-pointer"
+                        >
+                          {recoveryLoading ? 'Checking payment...' : 'Recover & Download'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {downloadSuccess && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Download started! Check your browser downloads folder for the uploaded material.</span>
+                    <span>{purchaseMode === 'success' ? 'Payment confirmed and your uploaded material is downloading.' : 'Download started! Check your browser downloads folder for the uploaded material.'}</span>
                   </div>
                 )}
 

@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/paystack", "destination": "/api/paystack.ts" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

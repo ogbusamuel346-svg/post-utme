@@ -675,29 +675,70 @@ USING (true);
 -- Refresh PostgREST's schema cache immediately after creating the table/policies
 NOTIFY pgrst, 'reload schema';
 
--- 5. Create Storage Bucket for Past Questions & Covers
+-- 5. Create private guest purchase records for Paystack payments
+-- The Vercel payment endpoint uses the Supabase service role to write these
+-- rows. No public RLS policy is intentionally created for this table.
+CREATE TABLE IF NOT EXISTS public.purchase_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reference TEXT UNIQUE NOT NULL,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+    email TEXT NOT NULL,
+    amount_kobo INTEGER NOT NULL CHECK (amount_kobo > 0),
+    currency TEXT NOT NULL DEFAULT 'NGN',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed', 'abandoned')),
+    access_code TEXT,
+    authorization_url TEXT,
+    transaction_id TEXT,
+    paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.purchase_orders ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS purchase_orders_reference_idx ON public.purchase_orders(reference);
+CREATE INDEX IF NOT EXISTS purchase_orders_email_idx ON public.purchase_orders(lower(email));
+
+-- 6. Create Storage Buckets
+-- past-questions is kept public for legacy records. New covers go to the
+-- public site-assets bucket, while new paid materials go to private storage.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('past-questions', 'past-questions', true)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('site-assets', 'site-assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('paid-materials', 'paid-materials', false)
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE storage.buckets SET public = false WHERE id = 'paid-materials';
+
 -- Allow the authenticated admin client to verify that the bucket exists
 DROP POLICY IF EXISTS "Admins can view past questions bucket" ON storage.buckets;
-CREATE POLICY "Admins can view past questions bucket"
+DROP POLICY IF EXISTS "Admins can view upload buckets" ON storage.buckets;
+CREATE POLICY "Admins can view upload buckets"
 ON storage.buckets FOR SELECT TO authenticated
-USING ( id = 'past-questions' );
+USING ( id IN ('past-questions', 'site-assets', 'paid-materials') );
 
--- 6. Storage Bucket Public Access Policy
+-- 7. Storage Bucket Public Access Policy
 DROP POLICY IF EXISTS "Public Access for Past Questions" ON storage.objects;
 CREATE POLICY "Public Access for Past Questions"
 ON storage.objects FOR SELECT
 USING ( bucket_id = 'past-questions' );
 
+DROP POLICY IF EXISTS "Public Access for Site Assets" ON storage.objects;
+CREATE POLICY "Public Access for Site Assets"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'site-assets' );
+
 DROP POLICY IF EXISTS "Public Uploads for Past Questions" ON storage.objects;
 DROP POLICY IF EXISTS "Admin Upload Access" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can upload past questions" ON storage.objects;
-CREATE POLICY "Admins can upload past questions"
+DROP POLICY IF EXISTS "Admins can upload resource files" ON storage.objects;
+CREATE POLICY "Admins can upload resource files"
 ON storage.objects FOR INSERT TO authenticated
-WITH CHECK ( bucket_id = 'past-questions' );
+WITH CHECK ( bucket_id IN ('past-questions', 'site-assets', 'paid-materials') );
 `;
   }
 }

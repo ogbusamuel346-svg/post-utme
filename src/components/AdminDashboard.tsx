@@ -127,7 +127,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     const file = e.target.files?.[0];
     if (!file) return;
     setCoverUploading(true);
-    const result = await supabaseService.uploadFile(file, 'past-questions');
+    const result = await supabaseService.uploadFile(file, 'site-assets');
     if (result.success && result.url) {
       setFormData(prev => ({ ...prev, coverUrl: result.url }));
       setActionMessage(null);
@@ -141,7 +141,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     const file = e.target.files?.[0];
     if (!file) return;
     setFileUploading(true);
-    const result = await supabaseService.uploadFile(file, 'past-questions');
+    const result = await supabaseService.uploadFile(file, 'paid-materials');
     if (result.success && result.url) {
       setFormData(prev => ({ 
         ...prev, 
