@@ -32,13 +32,13 @@ export function Footer({ onSelectCategory, onOpenCalculator, onOpenSubjectCombin
 
             <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
               <a
-                href="https://wa.me/2348030009988"
+                href="https://wa.me/2349162193327"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp Helpline: +234 803 000 9988</span>
+                <span>WhatsApp Helpline: +234 916 219 3327</span>
               </a>
             </div>
           </div>

@@ -7,7 +7,8 @@ interface WhatsAppButtonProps {
 }
 
 export function WhatsAppButton({
-  phoneNumber = '2348030009988',
+  // wa.me requires the Nigerian number without the leading zero.
+  phoneNumber = '2349162193327',
   defaultMessage = 'Hello EduJAMB, I need assistance with JAMB / Post-UTME past questions.'
 }: WhatsAppButtonProps) {
   const [isOpen, setIsOpen] = useState(false);

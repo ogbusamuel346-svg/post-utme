@@ -99,7 +99,7 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
     const text = encodeURIComponent(
       `Hello EduJAMB, I would like to order the verified past questions: "${resource.title}" (${resource.institution || 'UTME'}) - Price: ₦${resource.price.toLocaleString()}. Please provide payment instructions and delivery details.`
     );
-    window.open(`https://wa.me/2348030009988?text=${text}`, '_blank');
+    window.open(`https://wa.me/2349162193327?text=${text}`, '_blank');
   };
 
   const handleCopyLink = () => {
