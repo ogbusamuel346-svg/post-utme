@@ -129,7 +129,7 @@ class SupabaseService {
     }
   }
 
-  public async signInWithPassword(email: string, password: string): Promise<{ success: boolean; user?: User | null; session?: Session | null; error?: string }> {
+  public async signInWithPassword(email: string, password: string): Promise<{ success: boolean; user?: User | null; session?: Session | null; error?: string; message?: string }> {
     if (!this.client) {
       return {
         success: false,
@@ -194,6 +194,64 @@ class SupabaseService {
         success: false,
         error: err.message || 'Failed to sign up.'
       };
+    }
+  }
+
+  public async signUpStudent(email: string, password: string, fullName: string): Promise<{ success: boolean; user?: User | null; session?: Session | null; error?: string; message?: string }> {
+    if (!this.client) {
+      return {
+        success: false,
+        error: 'Supabase is not configured. Please configure your project URL and Anon key first.'
+      };
+    }
+
+    try {
+      const { data, error } = await this.client.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            role: 'student',
+            full_name: fullName.trim()
+          },
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+        }
+      });
+
+      if (error) return { success: false, error: error.message };
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session,
+        message: data.session
+          ? 'Your Sam Edu Hub account is ready.'
+          : 'Account created. Check your email to confirm your account before signing in.'
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to create your account.' };
+    }
+  }
+
+  public async updateUserProfile(profile: { fullName: string; phone?: string; institution?: string; role?: 'student' | 'admin' }): Promise<{ success: boolean; user?: User | null; error?: string }> {
+    if (!this.client) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const metadata: Record<string, string> = {
+        full_name: profile.fullName.trim(),
+        phone: profile.phone?.trim() || '',
+        institution: profile.institution?.trim() || ''
+      };
+      if (profile.role) metadata.role = profile.role;
+
+      const { data, error } = await this.client.auth.updateUser({ data: metadata });
+
+      if (error) return { success: false, error: error.message };
+      return { success: true, user: data.user };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Your profile could not be updated.' };
     }
   }
 

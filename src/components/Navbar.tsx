@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import type { User } from '@supabase/supabase-js';
+import { Menu, X, UserRound } from 'lucide-react';
 import { BRAND_LOGO_URL, BRAND_NAME } from '../config/branding';
 
 interface NavbarProps {
@@ -7,15 +8,20 @@ interface NavbarProps {
   onSelectTab: (tab: string) => void;
   onOpenSubjectCombinations: () => void;
   supabaseConnected: boolean;
+  user: User | null;
+  onOpenAuth: () => void;
 }
 
 export function Navbar({
   currentTab,
   onSelectTab,
   onOpenSubjectCombinations,
-  supabaseConnected
+  supabaseConnected,
+  user,
+  onOpenAuth
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'My Profile';
 
   const handleNavClick = (tab: string) => {
     onSelectTab(tab);
@@ -85,6 +91,14 @@ export function Navbar({
           {/* Zone 3: Primary actions */}
           <div className="hidden sm:flex items-center gap-3">
             <button
+              onClick={onOpenAuth}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <UserRound className="h-4 w-4" />
+              <span>{user ? profileName : 'Sign in'}</span>
+            </button>
+
+            <button
               onClick={onOpenSubjectCombinations}
               className="px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
             >
@@ -152,6 +166,17 @@ export function Navbar({
           </nav>
 
           <div className="pt-2">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAuth();
+              }}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              <UserRound className="h-4 w-4" />
+              {user ? profileName : 'Sign in / Create account'}
+            </button>
+
             <button
               onClick={() => handleNavClick('all_resources')}
               className="w-full py-2.5 px-4 text-center text-sm font-semibold text-white bg-orange-600 rounded-lg hover:bg-orange-700"

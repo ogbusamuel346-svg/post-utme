@@ -19,6 +19,7 @@ A modern, high-performance web application designed for Nigerian students prepar
   - **JAMB Subject Combination Checker:** Verify correct 4-subject UTME requirements across faculties (Medicine, Engineering, Law, Social Sciences, Arts).
 - **Direct WhatsApp Order Integration:** One-click pre-filled WhatsApp ordering and customer support for students across Nigeria.
 - **Guest Paystack Checkout:** Students pay without creating an account, receive the real uploaded material after server-side verification, and can recover a previous purchase with their email and Paystack reference.
+- **Student Accounts:** Optional email/password signup, signin, and a personal profile for name, phone, and target institution. Guest purchasing remains available.
 
 ---
 
@@ -96,6 +97,10 @@ The application-generated migration is the source of truth. It also includes the
 3. Redeploy after saving the variables. The payment button initializes a transaction on the server, opens Paystack InlineJS in the browser, verifies the amount/reference on the server, then issues the download link.
 4. In Paystack Dashboard -> API Keys & Webhooks, set the webhook URL to `https://your-deployed-domain.example/api/paystack`. The endpoint validates Paystack's signature and records successful payments even if the buyer loses connection after paying.
 5. Buyers only enter an email address; they do not need an account. If a download is interrupted, they can reopen any paid resource, choose **Already paid? Recover your download**, and provide the same email plus the Paystack reference.
+
+### Student account setup
+
+Users can choose **Sign in** in the navbar and use email/password signup or signin. Profile details are stored in Supabase Auth user metadata; no extra profile table is required.
 
 ---
 

@@ -36,6 +36,9 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
 
     if (!res.success) {
       setErrorMsg(res.error || 'Invalid administrator credentials. Please check your email and password.');
+    } else if (res.user?.user_metadata?.role === 'student') {
+      await supabaseService.signOut();
+      setErrorMsg('Student accounts cannot access the staff dashboard. Please use the main website profile menu.');
     } else {
       onLoginSuccess(res.user);
     }

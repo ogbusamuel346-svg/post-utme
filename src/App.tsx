@@ -10,6 +10,7 @@ import { AggregateCalculatorModal } from './components/AggregateCalculatorModal'
 import { SubjectCombinationModal } from './components/SubjectCombinationModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
+import { UserAuthModal } from './components/UserAuthModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { Footer } from './components/Footer';
 import { SEOHead } from './components/SEOHead';
@@ -49,6 +50,7 @@ export default function App() {
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSubjectCombinationOpen, setIsSubjectCombinationOpen] = useState(false);
+  const [isUserAuthOpen, setIsUserAuthOpen] = useState(false);
 
   // Filters
   const [filterState, setFilterState] = useState<FilterState>({
@@ -259,7 +261,7 @@ export default function App() {
               </div>
             </div>
           </div>
-        ) : !adminUser ? (
+        ) : !adminUser || adminUser.user_metadata?.role === 'student' ? (
           <AdminLogin
             onLoginSuccess={(user) => setAdminUser(user)}
             onBackToSite={handleBackToSite}
@@ -282,6 +284,8 @@ export default function App() {
             onSelectTab={handleNavSelect}
             onOpenSubjectCombinations={() => setIsSubjectCombinationOpen(true)}
             supabaseConnected={supabaseConnected}
+            user={adminUser}
+            onOpenAuth={() => setIsUserAuthOpen(true)}
           />
 
           <main className="flex-1">
@@ -713,6 +717,17 @@ export default function App() {
         onSelectResourceSubject={(sub) => {
           setIsSubjectCombinationOpen(false);
           setFilterState(prev => ({ ...prev, search: sub, category: 'all' }));
+        }}
+      />
+
+      <UserAuthModal
+        isOpen={isUserAuthOpen}
+        user={adminUser}
+        onClose={() => setIsUserAuthOpen(false)}
+        onAuthenticated={(user) => setAdminUser(user)}
+        onSignOut={async () => {
+          await handleAdminSignOut();
+          setIsUserAuthOpen(false);
         }}
       />
 
