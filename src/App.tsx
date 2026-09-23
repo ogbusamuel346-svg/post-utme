@@ -149,6 +149,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleUserAuthenticated = (user: User) => {
+    setAdminUser(user);
+    handleNavigateToDashboard();
+  };
+
   const handleNavigateToAdmin = () => {
     window.history.pushState({}, '', '/admin');
     setIsAdminRoute(true);
@@ -790,7 +795,7 @@ export default function App() {
         isOpen={isUserAuthOpen}
         user={adminUser}
         onClose={() => setIsUserAuthOpen(false)}
-        onAuthenticated={(user) => setAdminUser(user)}
+        onAuthenticated={handleUserAuthenticated}
         onSignOut={async () => {
           await handleAdminSignOut();
           setIsUserAuthOpen(false);
