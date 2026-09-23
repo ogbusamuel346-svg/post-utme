@@ -1,4 +1,5 @@
-import { BookOpen, MessageCircle, Shield, Award, Mail, Phone } from 'lucide-react';
+import { MessageCircle, Shield, Award, Mail, Phone } from 'lucide-react';
+import { BRAND_LOGO_URL, BRAND_NAME } from '../config/branding';
 
 interface FooterProps {
   onSelectCategory: (cat: string) => void;
@@ -16,11 +17,11 @@ export function Footer({ onSelectCategory, onOpenCalculator, onOpenSubjectCombin
           {/* Brand info */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#0F294A] flex items-center justify-center text-white">
-                <BookOpen className="w-4 h-4 text-orange-500" />
+              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+                <img src={BRAND_LOGO_URL} alt={`${BRAND_NAME} logo`} className="w-full h-full object-contain" />
               </div>
               <span className="text-xl font-bold tracking-tight text-white font-display">
-                Edu<span className="text-orange-500">JAMB</span>
+                Sam <span className="text-orange-500">Edu Hub</span>
               </span>
             </div>
             
@@ -29,6 +30,7 @@ export function Footer({ onSelectCategory, onOpenCalculator, onOpenSubjectCombin
               university Post-UTME aptitude screening test papers, syllabus summaries, 
               and cut-off score calculators.
             </p>
+            <p className="text-[11px] text-slate-500">Founded by Sam Edu Hub.</p>
 
             <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
               <a
@@ -144,7 +146,7 @@ export function Footer({ onSelectCategory, onOpenCalculator, onOpenSubjectCombin
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <p>© {new Date().getFullYear()} EduJAMB Academic Services. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Sam Edu Hub. All rights reserved.</p>
           <div className="flex items-center gap-5">
             <span>Sitemap</span>
             <span>Privacy Policy</span>

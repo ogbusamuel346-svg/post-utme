@@ -50,7 +50,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload }: ResourceCa
           <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#0F294A] to-[#1E3A8A] text-white text-center">
             <FileText className="w-12 h-12 text-orange-400 mb-2 opacity-80" />
             <span className="text-xs uppercase tracking-wider font-semibold text-slate-300">
-              {resource.institution || 'EduJAMB'}
+              {resource.institution || 'Sam Edu Hub'}
             </span>
             <p className="text-sm font-bold line-clamp-2 mt-1">
               {resource.title}

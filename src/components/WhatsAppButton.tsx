@@ -9,7 +9,7 @@ interface WhatsAppButtonProps {
 export function WhatsAppButton({
   // wa.me requires the Nigerian number without the leading zero.
   phoneNumber = '2349162193327',
-  defaultMessage = 'Hello EduJAMB, I need assistance with JAMB / Post-UTME past questions.'
+  defaultMessage = 'Hello Sam Edu Hub, I need assistance with JAMB / Post-UTME past questions.'
 }: WhatsAppButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
@@ -73,7 +73,7 @@ export function WhatsAppButton({
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0F294A]" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold tracking-tight">EduJAMB Student Desk</h4>
+                  <h4 className="text-sm font-semibold tracking-tight">Sam Edu Hub Student Desk</h4>
                   <p className="text-[11px] text-emerald-300 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                     Online · Typically replies in 5 mins
@@ -92,7 +92,7 @@ export function WhatsAppButton({
           {/* Body */}
           <div className="p-4 space-y-3 bg-slate-50 text-slate-800 text-xs">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs space-y-1">
-              <p className="font-medium text-slate-900">👋 Welcome to EduJAMB Support!</p>
+              <p className="font-medium text-slate-900">👋 Welcome to Sam Edu Hub Support!</p>
               <p className="text-slate-600 leading-relaxed">
                 Have questions about Post-UTME questions, downloading your syllabus, or payment? Tap a quick option below or chat directly.
               </p>
@@ -142,7 +142,7 @@ export function WhatsAppButton({
 
             <div className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1 pt-1">
               <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-              <span>Official EduJAMB WhatsApp Helpline</span>
+              <span>Official Sam Edu Hub WhatsApp Helpline</span>
             </div>
           </div>
         </div>

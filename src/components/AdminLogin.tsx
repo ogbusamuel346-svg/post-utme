@@ -88,7 +88,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
             <Shield className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold font-display text-white tracking-tight">
-            EduJAMB Admin Console
+            Sam Edu Hub Admin Console
           </h1>
           <p className="text-xs text-slate-400">
             Protected management area for past questions, syllabus guides, and screening papers.
@@ -260,7 +260,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
 
       {/* Footer Note */}
       <div className="max-w-md w-full mx-auto text-center text-[11px] text-slate-600 z-10">
-        EduJAMB Academic Repository · Restriced Staff Access Only
+        Sam Edu Hub Academic Repository · Restricted Staff Access Only
       </div>
 
     </div>

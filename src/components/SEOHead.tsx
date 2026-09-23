@@ -9,7 +9,7 @@ interface SEOHeadProps {
 }
 
 export function SEOHead({
-  title = 'EduJAMB - JAMB & Post-UTME Past Questions & Educational Resources',
+  title = 'Sam Edu Hub - JAMB & Post-UTME Past Questions & Educational Resources',
   description = 'Download verified JAMB UTME & University Post-UTME past questions with step-by-step solutions, syllabus guides, and student calculators.',
   canonicalUrl,
   ogType = 'website',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BookOpen, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import { BRAND_LOGO_URL, BRAND_NAME } from '../config/branding';
 
 interface NavbarProps {
   currentTab: string;
@@ -32,12 +33,12 @@ export function Navbar({
             onClick={() => handleNavClick('home')}
             className="flex items-center gap-2.5 text-left group focus:outline-none"
           >
-            <div className="w-9 h-9 rounded-lg bg-[#0F294A] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
-              <BookOpen className="w-5 h-5 text-orange-500" />
+            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm transition-transform group-hover:scale-105">
+              <img src={BRAND_LOGO_URL} alt={`${BRAND_NAME} logo`} className="w-full h-full object-contain" />
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight text-[#0F294A] font-display">
-                Edu<span className="text-orange-500">JAMB</span>
+                Sam <span className="text-orange-500">Edu Hub</span>
               </span>
               <span className="block text-[10px] text-slate-500 font-medium tracking-wider uppercase -mt-1">
                 Past Questions & Solutions

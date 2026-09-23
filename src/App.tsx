@@ -232,7 +232,7 @@ export default function App() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    'name': 'EduJAMB',
+    'name': 'Sam Edu Hub',
     'url': 'https://edujamb.ng',
     'potentialAction': {
       '@type': 'SearchAction',
@@ -534,7 +534,7 @@ export default function App() {
                   Standard of Excellence
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-bold font-display text-slate-900">
-                  Why Serious JAMBites Choose EduJAMB
+                  Why Serious JAMBites Choose Sam Edu Hub
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500">
                   Every past question undergoes multiple verification reviews by university graduate scholars before release.

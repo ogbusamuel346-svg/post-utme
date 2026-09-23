@@ -70,7 +70,7 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
           : '.pdf';
       const downloadName = hasExtension
         ? originalName
-        : `${resource.slug || 'edujamb-resource'}${extension}`;
+        : `${resource.slug || 'sam-edu-hub-resource'}${extension}`;
 
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -97,7 +97,7 @@ export function ResourceDetailModal({ resource, onClose, onDownloaded }: Resourc
 
   const handleWhatsAppOrder = () => {
     const text = encodeURIComponent(
-      `Hello EduJAMB, I would like to order the verified past questions: "${resource.title}" (${resource.institution || 'UTME'}) - Price: ₦${resource.price.toLocaleString()}. Please provide payment instructions and delivery details.`
+      `Hello Sam Edu Hub, I would like to order the verified past questions: "${resource.title}" (${resource.institution || 'UTME'}) - Price: ₦${resource.price.toLocaleString()}. Please provide payment instructions and delivery details.`
     );
     window.open(`https://wa.me/2349162193327?text=${text}`, '_blank');
   };
