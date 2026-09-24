@@ -664,7 +664,10 @@ class SupabaseService {
         const cleanName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         const uploadPromise = this.client.storage
           .from(bucket)
-          .upload(cleanName, file, { cacheControl: '3600', upsert: true });
+          // Every path includes a timestamp, so this is always a new object.
+          // Avoiding upsert keeps paid-material uploads dependent only on the
+          // INSERT policy and never requires UPDATE access to storage.objects.
+          .upload(cleanName, file, { cacheControl: '3600', upsert: false });
 
         const timeoutPromise = new Promise<any>((_, reject) =>
           setTimeout(
