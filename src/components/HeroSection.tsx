@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, ArrowRight, ShieldCheck, Download, Award, CheckCircle } from 'lucide-react';
-import heroImage from '../assets/images/hero_jamb_students_1790125894091.jpg';
+
+const heroImage = 'https://i.ibb.co/mCPq0pf8/Chat-GPT-Image-Sep-24-2026-01-13-09-AM.png';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
@@ -120,14 +121,14 @@ export function HeroSection({ onSearch, onSelectCategory }: HeroSectionProps) {
 
           {/* Right Column: Hero Visual Image */}
           <div className="lg:col-span-5">
-            <div className="relative mx-auto max-w-sm lg:max-w-none">
+            <div className="relative mx-auto w-full max-w-sm lg:max-w-none">
               
               {/* Main Photo Frame */}
               <div className="relative rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl aspect-[2/3] bg-slate-800">
                 <img
                   src={heroImage}
-                  alt="Female Nigerian university student preparing for JAMB examinations"
-                  className="absolute inset-0 w-full h-full object-cover object-[35%_center] scale-[1.65] origin-[35%_58%]"
+                  alt="Female student carrying study books on campus"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                   referrerPolicy="no-referrer"
                   loading="eager"
                 />
