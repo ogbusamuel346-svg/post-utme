@@ -29,6 +29,11 @@ const isProductsTableMissingError = (error: any): boolean => {
     message.includes('relation "products" does not exist');
 };
 
+const isRlsPolicyError = (error: any): boolean => {
+  const message = String(error?.message || error || '').toLowerCase();
+  return error?.code === '42501' || message.includes('row-level security policy');
+};
+
 // Check environment variables first, then localStorage
 const ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const ENV_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -95,6 +100,36 @@ class SupabaseService {
 
   public getConfig(): SupabaseConfig {
     return { ...this.config };
+  }
+
+  public async getAuthDiagnostics(): Promise<{
+    hasSession: boolean;
+    role: string;
+    email: string;
+    projectHost: string;
+  }> {
+    const session = await this.getSession();
+    let projectHost = this.config.url || 'not configured';
+    try {
+      projectHost = new URL(this.config.url).host;
+    } catch {
+      // Keep the configured value when it is not a complete URL.
+    }
+
+    return {
+      hasSession: Boolean(session?.access_token),
+      role: session?.user?.role || 'anon',
+      email: session?.user?.email || 'none',
+      projectHost
+    };
+  }
+
+  private async explainRlsFailure(table: string, operation: string, error: any): Promise<string> {
+    const diagnostics = await this.getAuthDiagnostics();
+    const session = diagnostics.hasSession
+      ? `authenticated session (${diagnostics.email})`
+      : 'no active authenticated session; request is using anon';
+    return `Supabase RLS blocked ${operation} on ${table}. Project: ${diagnostics.projectHost}. Session: ${session}; role: ${diagnostics.role}. Confirm the matching INSERT/UPDATE policy exists in this project and sign in again. Original error: ${error?.message || error}`;
   }
 
   public getClient(): SupabaseClient | null {
@@ -522,14 +557,22 @@ class SupabaseService {
           return {
             success: false,
             data: resource,
-            message: isProductsTableMissingError(error)
+            message: isRlsPolicyError(error)
+              ? await this.explainRlsFailure('public.products', 'product insert/update', error)
+              : isProductsTableMissingError(error)
               ? PRODUCTS_TABLE_SETUP_MESSAGE
               : `Could not publish resource: ${error.message}`
           };
         }
       } catch (err: any) {
         console.warn('Supabase upsert failed:', err?.message || err);
-        return { success: false, data: resource, message: `Could not publish resource: ${err?.message || 'Supabase request failed.'}` };
+        return {
+          success: false,
+          data: resource,
+          message: isRlsPolicyError(err)
+            ? await this.explainRlsFailure('public.products', 'product insert/update', err)
+            : `Could not publish resource: ${err?.message || 'Supabase request failed.'}`
+        };
       }
 
       this.saveToLocalStorage(updatedList);
@@ -612,7 +655,9 @@ class SupabaseService {
           return {
             success: false,
             url: '',
-            error: `Storage bucket "${bucket}" is unavailable: ${bucketError.message}. Run the Supabase storage migration.`
+            error: isRlsPolicyError(bucketError)
+              ? await this.explainRlsFailure(`storage.buckets (${bucket})`, 'bucket lookup', bucketError)
+              : `Storage bucket "${bucket}" is unavailable: ${bucketError.message}. Run the Supabase storage migration.`
           };
         }
 
@@ -637,11 +682,23 @@ class SupabaseService {
           }
         } else if (error) {
           console.warn('Supabase storage upload error:', error.message);
-          return { success: false, url: '', error: error.message };
+          return {
+            success: false,
+            url: '',
+            error: isRlsPolicyError(error)
+              ? await this.explainRlsFailure(`storage.objects (${bucket})`, 'file upload', error)
+              : error.message
+          };
         }
       } catch (err: any) {
         console.warn('Supabase storage exception:', err?.message || err);
-        return { success: false, url: '', error: err?.message || 'Storage upload failed.' };
+        return {
+          success: false,
+          url: '',
+          error: isRlsPolicyError(err)
+            ? await this.explainRlsFailure(`storage.objects (${bucket})`, 'file upload', err)
+            : err?.message || 'Storage upload failed.'
+        };
       }
 
       return { success: false, url: '', error: 'Supabase did not return a public file URL.' };
