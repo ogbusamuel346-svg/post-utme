@@ -23,6 +23,7 @@ export function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'My Profile';
   const officialSyllabusUrl = 'https://ibass.jamb.gov.ng/e-syllabus';
+  const officialBrochureUrl = 'https://ibass.jamb.gov.ng/brochure-by-institution';
 
   const handleNavClick = (tab: string) => {
     onSelectTab(tab);
@@ -33,6 +34,11 @@ export function Navbar({
   const handleSyllabusClick = () => {
     setMobileMenuOpen(false);
     window.location.assign(officialSyllabusUrl);
+  };
+
+  const handleBrochureClick = () => {
+    setMobileMenuOpen(false);
+    window.location.assign(officialBrochureUrl);
   };
 
   return (
@@ -105,7 +111,7 @@ export function Navbar({
             </button>
 
             <button
-              onClick={onOpenSubjectCombinations}
+              onClick={handleBrochureClick}
               className="px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
             >
               Brochure Guide
