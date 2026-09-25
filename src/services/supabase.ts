@@ -254,7 +254,9 @@ class SupabaseService {
             role: 'student',
             full_name: fullName.trim()
           },
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+          emailRedirectTo: typeof window !== 'undefined'
+            ? `${window.location.origin}/dashboard`
+            : undefined
         }
       });
 
