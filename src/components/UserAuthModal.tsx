@@ -24,7 +24,7 @@ interface UserAuthModalProps {
 }
 
 export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOut }: UserAuthModalProps) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -61,6 +61,20 @@ export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOu
   const handlePasswordAuth = async (event: React.FormEvent) => {
     event.preventDefault();
     resetMessages();
+
+    if (mode === 'forgot') {
+      setLoading(true);
+      const result = await supabaseService.sendPasswordResetEmail(email);
+      setLoading(false);
+
+      if (!result.success) {
+        setErrorMessage(result.error || 'Could not send the password reset link.');
+        return;
+      }
+
+      setSuccessMessage(result.message || 'Password reset link sent. Check your email to continue.');
+      return;
+    }
 
     if (mode === 'signup' && password !== confirmPassword) {
       setErrorMessage('Your passwords do not match.');
@@ -118,7 +132,13 @@ export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOu
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-orange-600">Sam Edu Hub</p>
             <h2 className="mt-1 text-xl font-bold text-slate-900">
-              {user ? 'Your personal profile' : mode === 'signup' ? 'Create your student account' : 'Welcome back'}
+              {user
+                ? 'Your personal profile'
+                : mode === 'signup'
+                  ? 'Create your student account'
+                  : mode === 'forgot'
+                    ? 'Reset your password'
+                    : 'Welcome back'}
             </h2>
           </div>
           <button
@@ -225,15 +245,15 @@ export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOu
             <>
               <div className="flex rounded-lg bg-slate-100 p-1">
                 <button
-                  type="button"
-                  onClick={() => { setMode('signin'); resetMessages(); }}
+                      type="button"
+                      onClick={() => { setMode('signin'); resetMessages(); }}
                   className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${mode === 'signin' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
                 >
                   Sign in
                 </button>
                 <button
-                  type="button"
-                  onClick={() => { setMode('signup'); resetMessages(); }}
+                      type="button"
+                      onClick={() => { setMode('signup'); resetMessages(); }}
                   className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
                 >
                   Create account
@@ -273,21 +293,23 @@ export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOu
                   </div>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="At least 6 characters"
-                      className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                    />
+                {mode !== 'forgot' && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="At least 6 characters"
+                        className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {mode === 'signup' && (
                   <div>
@@ -312,14 +334,48 @@ export function UserAuthModal({ isOpen, user, onClose, onAuthenticated, onSignOu
                   disabled={loading}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F294A] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#123761] disabled:bg-slate-400"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                  {loading ? 'Please wait...' : mode === 'signup' ? 'Create student account' : 'Sign in'}
+                  {loading
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : mode === 'signup'
+                      ? <UserPlus className="h-4 w-4" />
+                      : mode === 'forgot'
+                        ? <Mail className="h-4 w-4" />
+                        : <LogIn className="h-4 w-4" />}
+                  {loading
+                    ? 'Please wait...'
+                    : mode === 'signup'
+                      ? 'Create student account'
+                      : mode === 'forgot'
+                        ? 'Send reset link'
+                        : 'Sign in'}
                 </button>
               </form>
 
-              <p className="text-center text-[11px] leading-relaxed text-slate-500">
-                Your account is optional. Students can still pay and download as guests.
-              </p>
+              {mode === 'signin' && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); resetMessages(); }}
+                  className="w-full text-center text-xs font-semibold text-orange-600 hover:text-orange-700"
+                >
+                  Forgot password?
+                </button>
+              )}
+
+              {mode === 'forgot' && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('signin'); resetMessages(); }}
+                  className="w-full text-center text-xs font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  Back to sign in
+                </button>
+              )}
+
+              {mode !== 'forgot' && (
+                <p className="text-center text-[11px] leading-relaxed text-slate-500">
+                  Your account is optional. Students can still pay and download as guests.
+                </p>
+              )}
             </>
           )}
         </div>

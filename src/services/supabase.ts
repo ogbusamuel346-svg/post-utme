@@ -275,6 +275,48 @@ class SupabaseService {
     }
   }
 
+  public async sendPasswordResetEmail(email: string): Promise<{ success: boolean; error?: string; message?: string }> {
+    if (!this.client) {
+      return {
+        success: false,
+        error: 'Supabase is not configured. Please configure your project URL and Anon key first.'
+      };
+    }
+
+    try {
+      const { error } = await this.client.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: typeof window !== 'undefined'
+          ? `${window.location.origin}/reset-password`
+          : undefined
+      });
+
+      if (error) return { success: false, error: error.message };
+      return {
+        success: true,
+        message: 'Password reset link sent. Check your email to continue.'
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Could not send the password reset link.' };
+    }
+  }
+
+  public async updatePassword(password: string): Promise<{ success: boolean; user?: User | null; error?: string }> {
+    if (!this.client) {
+      return {
+        success: false,
+        error: 'Supabase is not configured. Please configure your project URL and Anon key first.'
+      };
+    }
+
+    try {
+      const { data, error } = await this.client.auth.updateUser({ password });
+      if (error) return { success: false, error: error.message };
+      return { success: true, user: data.user };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Could not update your password.' };
+    }
+  }
+
   public async updateUserProfile(profile: { fullName: string; phone?: string; institution?: string; role?: 'student' | 'admin' }): Promise<{ success: boolean; user?: User | null; error?: string }> {
     if (!this.client) {
       return { success: false, error: 'Supabase is not configured.' };

@@ -11,6 +11,7 @@ import { SubjectCombinationModal } from './components/SubjectCombinationModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
 import { UserAuthModal } from './components/UserAuthModal';
+import { PasswordResetPage } from './components/PasswordResetPage';
 import { UserDashboard } from './components/UserDashboard';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { Footer } from './components/Footer';
@@ -44,6 +45,11 @@ const checkIsUserDashboardPath = (): boolean => {
   return path === '/dashboard' || path.startsWith('/dashboard/') || params.get('view') === 'dashboard';
 };
 
+const checkIsPasswordResetPath = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname.toLowerCase() === '/reset-password';
+};
+
 export default function App() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +58,7 @@ export default function App() {
   // Navigation & Route states
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => checkIsAdminPath());
   const [isUserDashboardRoute, setIsUserDashboardRoute] = useState<boolean>(() => checkIsUserDashboardPath());
+  const [isPasswordResetRoute, setIsPasswordResetRoute] = useState<boolean>(() => checkIsPasswordResetPath());
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState<boolean>(true);
   const [activeNavTab, setActiveNavTab] = useState<string>('home');
@@ -87,6 +94,7 @@ export default function App() {
     const handleLocationChange = () => {
       setIsAdminRoute(checkIsAdminPath());
       setIsUserDashboardRoute(checkIsUserDashboardPath());
+      setIsPasswordResetRoute(checkIsPasswordResetPath());
     };
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
@@ -138,6 +146,7 @@ export default function App() {
     window.history.pushState({}, '', '/');
     setIsAdminRoute(false);
     setIsUserDashboardRoute(false);
+    setIsPasswordResetRoute(false);
     setActiveNavTab('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -146,6 +155,7 @@ export default function App() {
     window.history.pushState({}, '', '/dashboard');
     setIsAdminRoute(false);
     setIsUserDashboardRoute(true);
+    setIsPasswordResetRoute(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -325,6 +335,21 @@ export default function App() {
             onOpenResource={(res) => setSelectedResource(res)}
             currentUser={adminUser}
             onSignOut={handleAdminSignOut}
+          />
+        )
+      ) : isPasswordResetRoute ? (
+        authChecking ? (
+          <div className="flex min-h-screen items-center justify-center bg-slate-100">
+            <Loader2 className="h-7 w-7 animate-spin text-orange-600" />
+          </div>
+        ) : (
+          <PasswordResetPage
+            user={adminUser}
+            onCompleted={(user) => {
+              setAdminUser(user);
+              handleNavigateToDashboard();
+            }}
+            onBackToSite={handleBackToSite}
           />
         )
       ) : isUserDashboardRoute ? (
