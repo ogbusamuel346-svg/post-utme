@@ -37,7 +37,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
   }, [user?.email, buyerEmail]);
 
   useEffect(() => {
-    setVideoUrl(null);
+    setVideoUrl(isJambIssue && isVideo ? resource.fileUrl || null : null);
     setDownloadSuccess(false);
     setDownloadError(null);
     setPurchaseMode('details');
@@ -387,9 +387,11 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                       Latest JAMB issue
                     </div>
                     <p className="text-xs leading-relaxed text-slate-700">
-                      This is an informational JAMB update. Read the full issue below and check the source link or official JAMB channels before acting on time-sensitive information.
+                      {isVideo
+                        ? 'This JAMB issue includes a public video update. Watch it below and verify time-sensitive details with official JAMB channels.'
+                        : 'This is an informational JAMB update. Read the full issue below and check the source link or official JAMB channels before acting on time-sensitive information.'}
                     </p>
-                    {resource.fileUrl && (
+                    {resource.fileUrl && !isVideo && (
                       <a
                         href={resource.fileUrl}
                         target="_blank"
@@ -535,7 +537,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                 )}
 
                 <p className="text-[11px] text-slate-500 text-center">
-                  {isJambIssue ? 'JAMB update · Read online · Verify time-sensitive details with official sources' : isVideo ? 'Instant online video access · Download for offline viewing' : 'Instant mobile access · Printable PDF document · Complete answers & rationale'}
+                  {isJambIssue ? isVideo ? 'Public JAMB video update · Watch online or download' : 'JAMB update · Read online · Verify time-sensitive details with official sources' : isVideo ? 'Instant online video access · Download for offline viewing' : 'Instant mobile access · Printable PDF document · Complete answers & rationale'}
                 </p>
               </div>
 
