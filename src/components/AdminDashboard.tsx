@@ -47,9 +47,11 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const [coverUploading, setCoverUploading] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
+  const [videoCoverUploading, setVideoCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoCoverInputRef = useRef<HTMLInputElement>(null);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -186,6 +188,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       setActionMessage({ success: false, text: result.error || 'Video upload failed.' });
     }
     setVideoUploading(false);
+  };
+
+  const handleVideoCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoCoverUploading(true);
+    const result = await supabaseService.uploadFile(file, 'site-assets');
+    if (result.success && result.url) {
+      setVideoForm(prev => ({ ...prev, coverUrl: result.url }));
+      setActionMessage(null);
+    } else {
+      setActionMessage({ success: false, text: result.error || 'Video cover upload failed.' });
+    }
+    setVideoCoverUploading(false);
+    e.target.value = '';
   };
 
   const handleSaveVideo = async (e: React.FormEvent) => {
@@ -1030,15 +1047,53 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                   </label>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Cover image URL</label>
-                  <input
-                    type="url"
-                    value={videoForm.coverUrl}
-                    onChange={(e) => setVideoForm({ ...videoForm, coverUrl: e.target.value })}
-                    placeholder="Paste a cover image URL"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
-                  />
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block font-semibold text-slate-700">Video cover image</label>
+                    {videoForm.coverUrl && <span className="text-[10px] font-semibold text-emerald-700">Cover ready</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {videoForm.coverUrl ? (
+                      <img
+                        src={videoForm.coverUrl}
+                        alt="Video cover preview"
+                        className="h-14 w-24 shrink-0 rounded-md border border-slate-300 bg-white object-cover"
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="flex h-14 w-24 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-400">
+                        <ImageIcon className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="file"
+                          ref={videoCoverInputRef}
+                          accept="image/*"
+                          onChange={handleVideoCoverUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => videoCoverInputRef.current?.click()}
+                          disabled={videoCoverUploading}
+                          className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer text-xs whitespace-nowrap"
+                        >
+                          <Upload className="h-3.5 w-3.5 text-orange-500" />
+                          {videoCoverUploading ? 'Uploading cover...' : 'Upload cover image'}
+                        </button>
+                        <input
+                          type="url"
+                          value={videoForm.coverUrl}
+                          onChange={(e) => setVideoForm({ ...videoForm, coverUrl: e.target.value })}
+                          placeholder="Or paste an image URL"
+                          className="min-w-0 flex-1 p-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-orange-500 font-mono"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500">Choose an image from your device or paste a hosted image URL.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
