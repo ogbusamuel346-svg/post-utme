@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Resource } from '../types';
-import { Download, Star, FileText, ArrowRight, Heart, Video } from 'lucide-react';
+import { Download, Star, FileText, ArrowRight, Heart, Video, Newspaper } from 'lucide-react';
 
 interface ResourceCardProps {
   resource: Resource;
@@ -12,6 +12,7 @@ interface ResourceCardProps {
 
 export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = false, onToggleSaved }: ResourceCardProps) {
   const [imgError, setImgError] = useState(false);
+  const isJambIssue = resource.category === 'jamb_issues';
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
@@ -19,6 +20,8 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
         return 'Post-UTME Past Exam';
       case 'jamb_utme':
         return 'JAMB UTME Past Paper';
+      case 'jamb_issues':
+        return 'JAMB Issue';
       case 'syllabus_novel':
         return 'Novel & Syllabus Guide';
       case 'formula_sheet':
@@ -50,7 +53,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
         ) : (
           /* Styled CSS Fallback Container */
           <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#0F294A] to-[#1E3A8A] text-white text-center">
-            {resource.mediaType === 'video' ? <Video className="w-12 h-12 text-orange-400 mb-2 opacity-80" /> : <FileText className="w-12 h-12 text-orange-400 mb-2 opacity-80" />}
+            {isJambIssue ? <Newspaper className="w-12 h-12 text-orange-400 mb-2 opacity-80" /> : resource.mediaType === 'video' ? <Video className="w-12 h-12 text-orange-400 mb-2 opacity-80" /> : <FileText className="w-12 h-12 text-orange-400 mb-2 opacity-80" />}
             <span className="text-xs uppercase tracking-wider font-semibold text-slate-300">
               {resource.institution || 'Sam Edu Hub'}
             </span>
@@ -62,7 +65,11 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
 
         {/* Free / Paid Marker (unboxed clean tag or top right indicator) */}
         <div className="absolute top-3 right-3">
-          {resource.isFree ? (
+          {isJambIssue ? (
+            <span className="px-2.5 py-1 text-xs font-bold text-orange-800 bg-orange-50 border border-orange-200/80 rounded-md shadow-xs">
+              JAMB UPDATE
+            </span>
+          ) : resource.isFree ? (
             <span className="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-md shadow-xs">
               {resource.mediaType === 'video' ? 'FREE VIDEO' : 'FREE PDF'}
             </span>
@@ -103,7 +110,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
             <span aria-hidden="true">·</span>
             <span>{resource.yearRange}</span>
             <span aria-hidden="true">·</span>
-            <span>{resource.mediaType === 'video' ? 'Video' : resource.format.split(' ')[0]}</span>
+            <span>{isJambIssue ? 'JAMB Issue' : resource.mediaType === 'video' ? 'Video' : resource.format.split(' ')[0]}</span>
           </div>
 
           {/* Title */}
@@ -144,11 +151,11 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
               onClick={() => onSelect(resource)}
               className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span>{resource.mediaType === 'video' ? 'Watch Video' : resource.isFree ? 'Read & Download' : 'View Past Questions'}</span>
+              <span>{isJambIssue ? 'Read JAMB Issue' : resource.mediaType === 'video' ? 'Watch Video' : resource.isFree ? 'Read & Download' : 'View Past Questions'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
-            {resource.isFree && onQuickDownload && (
+            {resource.isFree && !isJambIssue && onQuickDownload && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

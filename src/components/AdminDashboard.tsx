@@ -7,7 +7,7 @@ import coverJambSciences from '../assets/images/cover_jamb_sciences_179012592444
 import { 
   Plus, Edit2, Trash2, Database, Upload, CheckCircle2, 
   AlertCircle, RefreshCw, Copy, Check, ExternalLink, 
-  FileText, Image as ImageIcon, Search, Shield, ArrowLeft, Video,
+  FileText, Image as ImageIcon, Search, Shield, ArrowLeft, Video, Newspaper,
   DollarSign, Download, BookOpen, Star, LogOut, User as UserIcon
 } from 'lucide-react';
 
@@ -21,7 +21,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResource, currentUser, onSignOut }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'supabase'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'jamb_issues' | 'supabase'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   
@@ -29,6 +29,8 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingJambIssue, setIsSavingJambIssue] = useState(false);
+  const [editingJambIssue, setEditingJambIssue] = useState<Resource | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ success: boolean; text: string } | null>(null);
   
@@ -66,6 +68,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     featuresText: 'Verified CBT past questions\nStep-by-step verified explanations\nDetailed scoring rubrics\nBonus mock examination'
   });
 
+  // JAMB Issues are maintained separately from downloadable PDF/video products.
+  // They reuse the catalog persistence layer with a dedicated category so the
+  // existing Supabase schema and local fallback remain compatible.
+  const [jambIssueForm, setJambIssueForm] = useState({
+    title: '',
+    slug: '',
+    issueType: 'Admission Update',
+    institution: 'JAMB General',
+    publishedAt: new Date().toISOString().slice(0, 10),
+    coverUrl: coverJambEnglish,
+    sourceUrl: '',
+    description: '',
+    highlightsText: ''
+  });
+
   // Calculate stats
   const totalDownloads = resources.reduce((acc, r) => acc + (r.downloadsCount || 0), 0);
   const totalRevenue = resources.reduce((acc, r) => acc + ((r.downloadsCount || 0) * (r.price || 0)), 0);
@@ -78,6 +95,103 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     const matchesCat = filterCategory === 'all' || r.category === filterCategory;
     return matchesSearch && matchesCat;
   });
+
+  const jambIssues = resources
+    .filter(resource => resource.category === 'jamb_issues')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const resetJambIssueForm = () => {
+    setEditingJambIssue(null);
+    setJambIssueForm({
+      title: '',
+      slug: '',
+      issueType: 'Admission Update',
+      institution: 'JAMB General',
+      publishedAt: new Date().toISOString().slice(0, 10),
+      coverUrl: coverJambEnglish,
+      sourceUrl: '',
+      description: '',
+      highlightsText: ''
+    });
+  };
+
+  const openJambIssueEditor = (issue?: Resource) => {
+    if (!issue) {
+      resetJambIssueForm();
+      return;
+    }
+
+    setEditingJambIssue(issue);
+    setJambIssueForm({
+      title: issue.title,
+      slug: issue.slug,
+      issueType: issue.subject || 'JAMB Update',
+      institution: issue.institution || 'JAMB General',
+      publishedAt: issue.yearRange || new Date().toISOString().slice(0, 10),
+      coverUrl: issue.coverUrl || coverJambEnglish,
+      sourceUrl: issue.fileUrl || '',
+      description: issue.description,
+      highlightsText: issue.features.join('\n')
+    });
+  };
+
+  const handleSaveJambIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jambIssueForm.title.trim() || !jambIssueForm.description.trim()) return;
+
+    const wasEditing = Boolean(editingJambIssue);
+    setIsSavingJambIssue(true);
+    setActionMessage(null);
+    try {
+      const slug = jambIssueForm.slug.trim() || jambIssueForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const highlights = jambIssueForm.highlightsText
+        .split('\n')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      const issue: Resource = {
+        id: editingJambIssue?.id || `jamb-issue-${Date.now()}`,
+        slug,
+        title: jambIssueForm.title.trim(),
+        category: 'jamb_issues',
+        institution: jambIssueForm.institution.trim() || 'JAMB General',
+        subject: jambIssueForm.issueType.trim() || 'JAMB Update',
+        yearRange: jambIssueForm.publishedAt || new Date().toISOString().slice(0, 10),
+        price: 0,
+        isFree: true,
+        coverUrl: jambIssueForm.coverUrl.trim() || coverJambEnglish,
+        mediaType: 'document',
+        fileUrl: jambIssueForm.sourceUrl.trim(),
+        fileSize: 'Online update',
+        pageCount: 0,
+        duration: '',
+        format: 'JAMB Issue',
+        description: jambIssueForm.description.trim(),
+        features: highlights,
+        downloadsCount: editingJambIssue?.downloadsCount || 0,
+        rating: editingJambIssue?.rating || 5,
+        reviewCount: editingJambIssue?.reviewCount || 0,
+        isFeatured: true,
+        sampleQuestions: [],
+        createdAt: editingJambIssue?.createdAt || new Date().toISOString()
+      };
+
+      const result = await supabaseService.saveResource(issue);
+      if (!result.success) {
+        setActionMessage({ success: false, text: result.message || 'The JAMB issue could not be published.' });
+        return;
+      }
+
+      resetJambIssueForm();
+      setActionMessage({ success: true, text: wasEditing ? 'JAMB issue updated successfully.' : 'JAMB issue published successfully.' });
+      await onRefresh();
+    } catch (err) {
+      console.error('JAMB issue save error:', err);
+      setActionMessage({ success: false, text: 'The JAMB issue could not be published. Please try again.' });
+    } finally {
+      setIsSavingJambIssue(false);
+    }
+  };
 
   const openAddModal = () => {
     setEditingResource(null);
@@ -312,6 +426,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                 Products & Resources
               </button>
               <button
+                onClick={() => {
+                  setActiveTab('jamb_issues');
+                  setActionMessage(null);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'jamb_issues'
+                    ? 'bg-orange-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Newspaper className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">JAMB Issues</span>
+                <span className="sm:hidden">Issues</span>
+              </button>
+              <button
                 onClick={() => setActiveTab('supabase')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'supabase'
@@ -444,6 +573,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                   <option value="all">All Categories</option>
                   <option value="post_utme">Post-UTME Past Questions</option>
                   <option value="jamb_utme">JAMB UTME Papers</option>
+                  <option value="jamb_issues">JAMB Issues</option>
                   <option value="syllabus_novel">Syllabus & Novel</option>
                   <option value="formula_sheet">Formula Sheets</option>
                   <option value="bundle">Bundles</option>
@@ -575,6 +705,205 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
               </table>
             </div>
 
+          </div>
+        )}
+
+        {/* Dedicated JAMB Issues workspace */}
+        {activeTab === 'jamb_issues' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-6">
+            <section className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-200 bg-orange-50/50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-orange-700">
+                      <Newspaper className="w-5 h-5" />
+                      <h2 className="text-base font-bold text-slate-900 font-display">
+                        {editingJambIssue ? 'Edit JAMB Issue' : 'Publish JAMB Issue'}
+                      </h2>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Publish JAMB announcements and admission updates separately from paid documents and videos.
+                    </p>
+                  </div>
+                  {editingJambIssue && (
+                    <button
+                      type="button"
+                      onClick={resetJambIssueForm}
+                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 underline cursor-pointer"
+                    >
+                      New issue
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveJambIssue} className="p-5 space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Issue headline *</label>
+                  <input
+                    type="text"
+                    required
+                    value={jambIssueForm.title}
+                    onChange={(e) => setJambIssueForm({ ...jambIssueForm, title: e.target.value })}
+                    placeholder="e.g. JAMB 2026 UTME Registration Update"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Issue type</label>
+                    <select
+                      value={jambIssueForm.issueType}
+                      onChange={(e) => setJambIssueForm({ ...jambIssueForm, issueType: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                    >
+                      <option>Registration Update</option>
+                      <option>Exam Date</option>
+                      <option>Results & Scores</option>
+                      <option>Admission Update</option>
+                      <option>Policy & Requirements</option>
+                      <option>Other JAMB News</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Publish date</label>
+                    <input
+                      type="date"
+                      value={jambIssueForm.publishedAt}
+                      onChange={(e) => setJambIssueForm({ ...jambIssueForm, publishedAt: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Institution / scope</label>
+                    <input
+                      type="text"
+                      value={jambIssueForm.institution}
+                      onChange={(e) => setJambIssueForm({ ...jambIssueForm, institution: e.target.value })}
+                      placeholder="JAMB General"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Source link (optional)</label>
+                    <input
+                      type="url"
+                      value={jambIssueForm.sourceUrl}
+                      onChange={(e) => setJambIssueForm({ ...jambIssueForm, sourceUrl: e.target.value })}
+                      placeholder="https://www.jamb.gov.ng/..."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Cover image URL (optional)</label>
+                  <input
+                    type="url"
+                    value={jambIssueForm.coverUrl}
+                    onChange={(e) => setJambIssueForm({ ...jambIssueForm, coverUrl: e.target.value })}
+                    placeholder="Paste a cover image URL or keep the JAMB preset"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Issue details *</label>
+                  <textarea
+                    required
+                    rows={7}
+                    value={jambIssueForm.description}
+                    onChange={(e) => setJambIssueForm({ ...jambIssueForm, description: e.target.value })}
+                    placeholder="Write the full JAMB update, important dates, requirements, or admission guidance here..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500 leading-relaxed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Key points (one per line)</label>
+                  <textarea
+                    rows={4}
+                    value={jambIssueForm.highlightsText}
+                    onChange={(e) => setJambIssueForm({ ...jambIssueForm, highlightsText: e.target.value })}
+                    placeholder="Registration deadline\nRequired documents\nOfficial verification step"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSavingJambIssue}
+                  className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  {isSavingJambIssue ? 'Publishing...' : editingJambIssue ? 'Update JAMB Issue' : 'Publish JAMB Issue'}
+                </button>
+              </form>
+            </section>
+
+            <section className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-display">Published JAMB Issues</h2>
+                  <p className="text-xs text-slate-500 mt-1">{jambIssues.length} update{jambIssues.length === 1 ? '' : 's'} in the JAMB Issues category.</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 border border-orange-200 text-[11px] font-semibold">
+                  <Newspaper className="w-3.5 h-3.5" />
+                  Separate from resources
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {jambIssues.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 text-xs">
+                    No JAMB Issues published yet. Use the form to add your first update.
+                  </div>
+                ) : jambIssues.map((issue) => (
+                  <article key={issue.id} className="p-5 hover:bg-slate-50/80 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-orange-600">
+                          <span>{issue.subject || 'JAMB Update'}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="text-slate-500">{issue.yearRange}</span>
+                        </div>
+                        <h3 className="mt-1 text-sm font-bold text-slate-900 line-clamp-2">{issue.title}</h3>
+                        <p className="mt-2 text-xs text-slate-600 leading-relaxed line-clamp-3">{issue.description}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openJambIssueEditor(issue)}
+                          className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer"
+                          title="Edit JAMB Issue"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(issue.id)}
+                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                          title="Delete JAMB Issue"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-slate-500">
+                      <span>{issue.institution || 'JAMB General'}</span>
+                      {issue.fileUrl && (
+                        <a href={issue.fileUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:text-orange-700 font-semibold underline">
+                          View source
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
         )}
 
@@ -781,6 +1110,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                   >
                     <option value="post_utme">Post-UTME Past Questions</option>
                     <option value="jamb_utme">JAMB UTME Past Papers</option>
+                    <option value="jamb_issues">JAMB Issues (use the separate Issues tab)</option>
                     <option value="syllabus_novel">Syllabus & Novel Guide</option>
                     <option value="formula_sheet">Formula Sheets</option>
                     <option value="bundle">Bundle / Package</option>

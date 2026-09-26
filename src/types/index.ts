@@ -2,6 +2,7 @@ export type ResourceCategory =
   | 'all'
   | 'post_utme' 
   | 'jamb_utme' 
+  | 'jamb_issues'
   | 'syllabus_novel' 
   | 'formula_sheet' 
   | 'bundle';
@@ -17,7 +18,7 @@ export interface Resource {
   id: string;
   slug: string;
   title: string;
-  category: 'post_utme' | 'jamb_utme' | 'syllabus_novel' | 'formula_sheet' | 'bundle';
+  category: 'post_utme' | 'jamb_utme' | 'jamb_issues' | 'syllabus_novel' | 'formula_sheet' | 'bundle';
   institution?: string; // e.g. "UNILAG", "UI", "OAU", "JAMB General"
   subject?: string;
   yearRange: string;

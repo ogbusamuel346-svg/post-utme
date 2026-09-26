@@ -516,6 +516,7 @@ export default function App() {
                   { id: 'all', label: 'All Resources' },
                   { id: 'post_utme', label: 'Post-UTME Past Questions' },
                   { id: 'jamb_utme', label: 'JAMB UTME Papers' },
+                  { id: 'jamb_issues', label: 'JAMB Issues' },
                   { id: 'syllabus_novel', label: 'Syllabus & Novels' },
                   { id: 'formula_sheet', label: 'Formulas' },
                   { id: 'bundle', label: '4-in-1 Bundles' }

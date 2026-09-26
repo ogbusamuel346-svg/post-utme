@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Resource } from '../types';
-import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail, Video, PlayCircle } from 'lucide-react';
+import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail, Video, PlayCircle, Newspaper } from 'lucide-react';
 import { supabaseService } from '../services/supabase';
 import { initializePayment, openPaystackCheckout, waitForPayment, recoverPayment, getFreeDownload } from '../services/paystack';
 import { rememberPurchase } from '../services/userDashboard';
@@ -30,6 +30,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const isVideo = resource.mediaType === 'video';
+  const isJambIssue = resource.category === 'jamb_issues';
 
   useEffect(() => {
     if (user?.email && !buyerEmail) setBuyerEmail(user.email);
@@ -308,7 +309,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#0F294A] to-[#1E3A8A] text-white text-center">
-                    {isVideo ? <Video className="w-16 h-16 text-orange-400 mb-3" /> : <BookOpen className="w-16 h-16 text-orange-400 mb-3" />}
+                    {isJambIssue ? <Newspaper className="w-16 h-16 text-orange-400 mb-3" /> : isVideo ? <Video className="w-16 h-16 text-orange-400 mb-3" /> : <BookOpen className="w-16 h-16 text-orange-400 mb-3" />}
                     <p className="font-bold text-base">{resource.title}</p>
                   </div>
                 )}
@@ -322,11 +323,11 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
 
               {/* File Specs Unboxed Text */}
               <div className="mt-4 flex items-center justify-center gap-3 text-xs text-slate-500">
-                <span>{resource.fileSize}</span>
+                <span>{isJambIssue ? 'Online update' : resource.fileSize}</span>
                 <span aria-hidden="true">·</span>
-                <span>{isVideo ? resource.duration || 'Video lesson' : `${resource.pageCount} Pages`}</span>
+                <span>{isJambIssue ? resource.yearRange : isVideo ? resource.duration || 'Video lesson' : `${resource.pageCount} Pages`}</span>
                 <span aria-hidden="true">·</span>
-                <span>{resource.format}</span>
+                <span>{isJambIssue ? 'JAMB Issue' : resource.format}</span>
               </div>
             </div>
 
@@ -357,9 +358,11 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
               {/* Price Banner */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Study Material Price</p>
-                  <p className="text-2xl sm:text-3xl font-bold font-display text-slate-900 tabular-nums mt-0.5">
-                    {resource.isFree ? (
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{isJambIssue ? 'JAMB Information' : 'Study Material Price'}</p>
+                    <p className="text-2xl sm:text-3xl font-bold font-display text-slate-900 tabular-nums mt-0.5">
+                    {isJambIssue ? (
+                      <span className="text-orange-700">Free update</span>
+                    ) : resource.isFree ? (
                       <span className="text-emerald-700">100% Free</span>
                     ) : (
                       <>
@@ -371,13 +374,34 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>{isVideo ? 'Instant video access' : 'Verified CBT Format'}</span>
+                  <span>{isJambIssue ? 'Read online' : isVideo ? 'Instant video access' : 'Verified CBT Format'}</span>
                 </div>
               </div>
 
               {/* Primary Action Buttons */}
               <div className="space-y-3 pt-2">
-                {resource.isFree ? (
+                {isJambIssue ? (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                      <Newspaper className="w-4 h-4 text-orange-600" />
+                      Latest JAMB issue
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-700">
+                      This is an informational JAMB update. Read the full issue below and check the source link or official JAMB channels before acting on time-sensitive information.
+                    </p>
+                    {resource.fileUrl && (
+                      <a
+                        href={resource.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 hover:text-orange-800 underline"
+                      >
+                        Open official source
+                        <Share2 className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                ) : resource.isFree ? (
                   <button
                     onClick={handleFreeDownload}
                     disabled={downloading}
@@ -511,7 +535,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                 )}
 
                 <p className="text-[11px] text-slate-500 text-center">
-                  {isVideo ? 'Instant online video access · Download for offline viewing' : 'Instant mobile access · Printable PDF document · Complete answers & rationale'}
+                  {isJambIssue ? 'JAMB update · Read online · Verify time-sensitive details with official sources' : isVideo ? 'Instant online video access · Download for offline viewing' : 'Instant mobile access · Printable PDF document · Complete answers & rationale'}
                 </p>
               </div>
 
