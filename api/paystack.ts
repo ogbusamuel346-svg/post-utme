@@ -31,9 +31,11 @@ type Product = {
   title: string;
   price: number;
   is_free: boolean;
+  media_type: 'document' | 'video' | null;
   file_url: string | null;
   file_size: string | null;
   format: string | null;
+  duration: string | null;
 };
 
 const json = (res: ApiResponse, status: number, payload: unknown) => {
@@ -121,7 +123,7 @@ const makeReference = (): string => {
 const getProduct = async (supabase: ReturnType<typeof getSupabaseAdmin>, productId: string): Promise<Product> => {
   const { data, error } = await supabase
     .from('products')
-    .select('id, title, price, is_free, file_url, file_size, format')
+    .select('id, title, price, is_free, media_type, file_url, file_size, format, duration')
     .eq('id', productId)
     .maybeSingle();
 
@@ -168,7 +170,9 @@ const getDownloadGrant = async (supabase: ReturnType<typeof getSupabaseAdmin>, o
     title: product.title,
     fileUrl: await getDeliverableUrl(supabase, product.file_url),
     fileSize: product.file_size || '',
-    format: product.format || 'PDF'
+    format: product.format || 'PDF',
+    mediaType: product.media_type === 'video' ? 'video' : 'document',
+    duration: product.duration || ''
   };
 };
 
@@ -209,7 +213,11 @@ const getVerifiedPurchaseHistory = async (
       email: normalizeEmail(order.email),
       title: product.title,
       productId: product.id,
-      purchasedAt: order.paid_at || new Date().toISOString()
+      purchasedAt: order.paid_at || new Date().toISOString(),
+      mediaType: product.media_type === 'video' ? 'video' : 'document',
+      duration: product.duration || '',
+      fileSize: product.file_size || '',
+      format: product.format || 'PDF'
     };
   }))).filter(Boolean);
 
@@ -228,7 +236,9 @@ const getFreeDownloadGrant = async (supabase: ReturnType<typeof getSupabaseAdmin
     title: product.title,
     fileUrl: await getDeliverableUrl(supabase, product.file_url),
     fileSize: product.file_size || '',
-    format: product.format || 'PDF'
+    format: product.format || 'PDF',
+    mediaType: product.media_type === 'video' ? 'video' : 'document',
+    duration: product.duration || ''
   };
 };
 

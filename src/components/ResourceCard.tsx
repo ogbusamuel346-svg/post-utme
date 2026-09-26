@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Resource } from '../types';
-import { Download, Star, FileText, ArrowRight, Heart } from 'lucide-react';
+import { Download, Star, FileText, ArrowRight, Heart, Video } from 'lucide-react';
 
 interface ResourceCardProps {
   resource: Resource;
@@ -50,7 +50,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
         ) : (
           /* Styled CSS Fallback Container */
           <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#0F294A] to-[#1E3A8A] text-white text-center">
-            <FileText className="w-12 h-12 text-orange-400 mb-2 opacity-80" />
+            {resource.mediaType === 'video' ? <Video className="w-12 h-12 text-orange-400 mb-2 opacity-80" /> : <FileText className="w-12 h-12 text-orange-400 mb-2 opacity-80" />}
             <span className="text-xs uppercase tracking-wider font-semibold text-slate-300">
               {resource.institution || 'Sam Edu Hub'}
             </span>
@@ -64,7 +64,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
         <div className="absolute top-3 right-3">
           {resource.isFree ? (
             <span className="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-md shadow-xs">
-              FREE PDF
+              {resource.mediaType === 'video' ? 'FREE VIDEO' : 'FREE PDF'}
             </span>
           ) : (
             <span className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-md shadow-xs tabular-nums">
@@ -103,7 +103,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
             <span aria-hidden="true">·</span>
             <span>{resource.yearRange}</span>
             <span aria-hidden="true">·</span>
-            <span>{resource.format.split(' ')[0]}</span>
+            <span>{resource.mediaType === 'video' ? 'Video' : resource.format.split(' ')[0]}</span>
           </div>
 
           {/* Title */}
@@ -144,7 +144,7 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
               onClick={() => onSelect(resource)}
               className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span>{resource.isFree ? 'Read & Download' : 'View Past Questions'}</span>
+              <span>{resource.mediaType === 'video' ? 'Watch Video' : resource.isFree ? 'Read & Download' : 'View Past Questions'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
@@ -154,11 +154,11 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
                   e.stopPropagation();
                   onQuickDownload(resource);
                 }}
-                title="Quick Free PDF Download"
+                title={resource.mediaType === 'video' ? 'Quick Free Video Access' : 'Quick Free PDF Download'}
                 className="py-2 px-3 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold rounded-lg transition-colors border border-orange-200 cursor-pointer flex items-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Get PDF</span>
+                <span className="hidden sm:inline">{resource.mediaType === 'video' ? 'Watch' : 'Get PDF'}</span>
               </button>
             )}
           </div>

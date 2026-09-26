@@ -15,7 +15,9 @@ import {
   Settings,
   ShoppingBag,
   UserRound,
-  X
+  X,
+  PlayCircle,
+  Video
 } from 'lucide-react';
 import { Resource } from '../types';
 import { ResourceCard } from './ResourceCard';
@@ -56,6 +58,7 @@ export function UserDashboard({
   const [purchaseSyncError, setPurchaseSyncError] = useState<string | null>(null);
   const [downloadingReference, setDownloadingReference] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [watchingPurchase, setWatchingPurchase] = useState<{ purchase: LocalPurchase; url: string } | null>(null);
 
   const refreshPurchases = useCallback(async () => {
     if (!user?.email) {
@@ -130,7 +133,9 @@ export function UserDashboard({
         if (!/^https?:\/\//i.test(result.fileUrl)) throw fetchError;
       }
 
-      const extension = contentType.includes('word') ? '.docx' : contentType.includes('text') ? '.txt' : '.pdf';
+      const extension = contentType.includes('video/')
+        ? `.${contentType.split('/')[1]?.split(';')[0] || 'mp4'}`
+        : contentType.includes('word') ? '.docx' : contentType.includes('text') ? '.txt' : '.pdf';
       const safeTitle = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'sam-edu-hub-material';
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -144,6 +149,26 @@ export function UserDashboard({
       if (revokeUrl) window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : 'The material could not be downloaded.');
+    } finally {
+      setDownloadingReference(null);
+    }
+  };
+
+  const handlePurchaseWatch = async (purchase: LocalPurchase) => {
+    setDownloadingReference(purchase.reference);
+    setDownloadError(null);
+
+    try {
+      const result = await recoverPayment(purchase.reference, purchase.email);
+      if (!('fileUrl' in result) || !result.fileUrl) {
+        throw new Error(('message' in result && result.message) || 'Payment is still being confirmed. Please try again shortly.');
+      }
+      if (result.mediaType !== 'video') {
+        throw new Error('This purchase is a document. Use Download to open it.');
+      }
+      setWatchingPurchase({ purchase, url: result.fileUrl });
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'The video could not be opened.');
     } finally {
       setDownloadingReference(null);
     }
@@ -263,15 +288,22 @@ export function UserDashboard({
                 purchases.map(purchase => (
                   <div key={purchase.reference} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><BookOpen className="h-5 w-5" /></div>
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">{purchase.mediaType === 'video' ? <Video className="h-5 w-5" /> : <BookOpen className="h-5 w-5" />}</div>
                       <div>
                         <h2 className="text-sm font-bold text-slate-900">{purchase.title}</h2>
-                        <p className="mt-1 text-xs text-slate-500">Purchased {formatDate(purchase.purchasedAt)} · Reference {purchase.reference}</p>
+                        <p className="mt-1 text-xs text-slate-500">{purchase.mediaType === 'video' ? 'Video' : 'Document'} · Purchased {formatDate(purchase.purchasedAt)} · Reference {purchase.reference}</p>
                       </div>
                     </div>
-                    <button onClick={() => handlePurchaseDownload(purchase)} disabled={downloadingReference === purchase.reference} className="flex items-center justify-center gap-2 rounded-lg bg-[#0F294A] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#123761] disabled:bg-slate-400">
-                      <Download className="h-4 w-4" /> {downloadingReference === purchase.reference ? 'Preparing...' : 'Download'}
-                    </button>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {purchase.mediaType === 'video' && (
+                        <button onClick={() => void handlePurchaseWatch(purchase)} disabled={downloadingReference === purchase.reference} className="flex items-center justify-center gap-2 rounded-lg border border-orange-300 bg-orange-50 px-4 py-2.5 text-xs font-bold text-orange-700 hover:bg-orange-100 disabled:bg-slate-100">
+                          <PlayCircle className="h-4 w-4" /> {downloadingReference === purchase.reference ? 'Preparing...' : 'Watch online'}
+                        </button>
+                      )}
+                      <button onClick={() => void handlePurchaseDownload(purchase)} disabled={downloadingReference === purchase.reference} className="flex items-center justify-center gap-2 rounded-lg bg-[#0F294A] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#123761] disabled:bg-slate-400">
+                        <Download className="h-4 w-4" /> {downloadingReference === purchase.reference ? 'Preparing...' : purchase.mediaType === 'video' ? 'Download video' : 'Download'}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -288,6 +320,29 @@ export function UserDashboard({
           {activeSection === 'settings' && <SettingsSection user={user} onOpenProfile={onOpenProfile} onLogout={onLogout} />}
         </main>
       </div>
+      {watchingPurchase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={() => setWatchingPurchase(null)}>
+          <div className="w-full max-w-4xl rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">Purchased video</p>
+                <h2 className="mt-1 text-base font-bold text-white">{watchingPurchase.purchase.title}</h2>
+              </div>
+              <button type="button" onClick={() => setWatchingPurchase(null)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white" aria-label="Close video player">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <video src={watchingPurchase.url} controls autoPlay playsInline className="max-h-[70vh] w-full rounded-xl bg-black">
+              Your browser does not support embedded video playback.
+            </video>
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={() => void handlePurchaseDownload(watchingPurchase.purchase)} disabled={downloadingReference === watchingPurchase.purchase.reference} className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-700 disabled:bg-slate-500">
+                <Download className="h-4 w-4" /> {downloadingReference === watchingPurchase.purchase.reference ? 'Preparing...' : 'Download video'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

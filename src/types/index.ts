@@ -24,9 +24,11 @@ export interface Resource {
   price: number; // in NGN
   isFree: boolean;
   coverUrl: string;
+  mediaType?: 'document' | 'video';
   fileUrl?: string;
   fileSize: string;
   pageCount: number;
+  duration?: string;
   format: string; // e.g. "PDF eBook"
   description: string;
   features: string[];

@@ -15,6 +15,8 @@ export interface DownloadGrant {
   fileUrl: string;
   fileSize: string;
   format: string;
+  mediaType: 'document' | 'video';
+  duration: string;
 }
 
 interface PendingPaymentResponse {

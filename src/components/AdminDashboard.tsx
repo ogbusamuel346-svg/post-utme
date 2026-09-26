@@ -7,7 +7,7 @@ import coverJambSciences from '../assets/images/cover_jamb_sciences_179012592444
 import { 
   Plus, Edit2, Trash2, Database, Upload, CheckCircle2, 
   AlertCircle, RefreshCw, Copy, Check, ExternalLink, 
-  FileText, Image as ImageIcon, Search, Shield, ArrowLeft,
+  FileText, Image as ImageIcon, Search, Shield, ArrowLeft, Video,
   DollarSign, Download, BookOpen, Star, LogOut, User as UserIcon
 } from 'lucide-react';
 
@@ -56,9 +56,11 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     price: 2500,
     isFree: false,
     coverUrl: coverPostutme,
+    mediaType: 'document' as 'document' | 'video',
     fileUrl: '',
     fileSize: '7.5 MB',
     pageCount: 140,
+    duration: '',
     format: 'PDF (Printable & Mobile)',
     description: '',
     featuresText: 'Verified CBT past questions\nStep-by-step verified explanations\nDetailed scoring rubrics\nBonus mock examination'
@@ -90,9 +92,11 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       price: 2500,
       isFree: false,
       coverUrl: coverPostutme,
+      mediaType: 'document',
       fileUrl: '',
       fileSize: '7.5 MB',
       pageCount: 140,
+      duration: '',
       format: 'PDF (Printable & Mobile)',
       description: 'Comprehensive Post-UTME screening questions with step-by-step verified solutions and departmental cut-off requirements.',
       featuresText: 'Verified CBT past questions\nStep-by-step verified explanations\nDetailed scoring rubrics\nBonus mock examination'
@@ -113,9 +117,11 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       price: res.price,
       isFree: res.isFree,
       coverUrl: res.coverUrl,
+      mediaType: res.mediaType || 'document',
       fileUrl: res.fileUrl || '',
       fileSize: res.fileSize,
       pageCount: res.pageCount,
+      duration: res.duration || '',
       format: res.format,
       description: res.description,
       featuresText: res.features.join('\n')
@@ -150,7 +156,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       }));
       setActionMessage(null);
     } else {
-      setActionMessage({ success: false, text: result.error || 'Document upload failed.' });
+      setActionMessage({ success: false, text: result.error || 'File upload failed.' });
     }
     setFileUploading(false);
   };
@@ -179,9 +185,11 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
         price: formData.isFree ? 0 : Number(formData.price),
         isFree: Boolean(formData.isFree),
         coverUrl: formData.coverUrl.trim() || coverPostutme,
+        mediaType: formData.mediaType,
         fileUrl: formData.fileUrl.trim(),
         fileSize: formData.fileSize || '5.0 MB',
         pageCount: Number(formData.pageCount) || 120,
+        duration: formData.duration.trim(),
         format: formData.format || 'PDF (Printable & Mobile)',
         description: formData.description || `Comprehensive examination past questions and detailed solutions for ${formData.institution.trim() || 'tertiary screening'}.`,
         features: features.length > 0 ? features : ['Verified past questions', 'Detailed solutions', 'Bonus mock tests'],
@@ -490,7 +498,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white text-[9px] text-center font-bold">
-                                  PDF
+                                  {res.mediaType === 'video' ? <Video className="h-4 w-4" /> : 'PDF'}
                                 </div>
                               )}
                             </div>
@@ -501,8 +509,9 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                               >
                                 {res.title}
                               </p>
-                              <p className="text-[11px] text-slate-500 line-clamp-1">
-                                {res.subject || 'General'}
+                              <p className="flex items-center gap-1 text-[11px] text-slate-500 line-clamp-1">
+                                {res.mediaType === 'video' && <Video className="h-3 w-3 text-orange-500" />}
+                                {res.mediaType === 'video' ? 'Video' : res.subject || 'General'}
                               </p>
                             </div>
                           </div>
@@ -796,6 +805,37 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                 </div>
               </div>
 
+              {/* Content Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Content Type</label>
+                  <select
+                    value={formData.mediaType}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      mediaType: e.target.value as 'document' | 'video',
+                      format: e.target.value === 'video' ? 'Video lesson' : 'PDF (Printable & Mobile)'
+                    })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                  >
+                    <option value="document">PDF / Document</option>
+                    <option value="video">Video</option>
+                  </select>
+                </div>
+                {formData.mediaType === 'video' && (
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Video Duration</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1h 25m"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Subject & Year Range */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -937,20 +977,22 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                 </div>
               </div>
 
-              {/* Study PDF File Upload or Direct Link */}
+              {/* Study File or Video Upload / Direct Link */}
               <div className="space-y-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between">
                   <label className="block font-semibold text-slate-700">
-                    Past Question PDF / Document File *
+                    {formData.mediaType === 'video' ? 'Video File' : 'Past Question PDF / Document File'} *
                   </label>
                   {formData.fileUrl ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[11px] font-semibold">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Document Ready ({formData.fileSize})
+                      {formData.mediaType === 'video' ? 'Video Ready' : 'Document Ready'} ({formData.fileSize})
                     </span>
                   ) : (
                     <span className="text-[10px] text-slate-400">
-                      Upload PDF or paste Google Drive / Cloud link
+                      {formData.mediaType === 'video'
+                        ? 'Upload MP4/WebM/MOV or paste a direct video link'
+                        : 'Upload PDF or paste Google Drive / Cloud link'}
                     </span>
                   )}
                 </div>
@@ -960,7 +1002,7 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                     <input
                       type="file"
                       ref={fileInputRef}
-                      accept=".pdf,.doc,.docx,.txt"
+                      accept={formData.mediaType === 'video' ? 'video/*,.mp4,.webm,.mov,.m4v' : '.pdf,.doc,.docx,.txt'}
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -971,13 +1013,13 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                       className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer text-xs whitespace-nowrap shadow-2xs"
                     >
                       <FileText className="w-3.5 h-3.5 text-orange-500" />
-                      <span>{fileUploading ? 'Attaching PDF...' : 'Choose PDF File'}</span>
+                      <span>{fileUploading ? 'Attaching...' : formData.mediaType === 'video' ? 'Choose Video File' : 'Choose PDF File'}</span>
                     </button>
 
                     <div className="flex-1">
                       <input
                         type="text"
-                        placeholder="Or paste direct download link (Google Drive, Cloud URL, or Supabase)"
+                        placeholder={formData.mediaType === 'video' ? 'Or paste direct video URL (MP4, WebM, or Supabase)' : 'Or paste direct download link (Google Drive, Cloud URL, or Supabase)'}
                         value={formData.fileUrl}
                         onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
                         className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-orange-500 font-mono"
@@ -991,17 +1033,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                         Size: <input type="text" value={formData.fileSize} onChange={(e) => setFormData({ ...formData, fileSize: e.target.value })} className="p-0.5 px-1 bg-white border border-slate-200 rounded w-18 text-center font-mono text-[11px]" />
                       </span>
                       <span>
-                        Pages: <input type="number" value={formData.pageCount} onChange={(e) => setFormData({ ...formData, pageCount: Number(e.target.value) })} className="p-0.5 px-1 bg-white border border-slate-200 rounded w-14 text-center font-mono text-[11px]" />
+                        {formData.mediaType === 'video' ? 'Duration:' : 'Pages:'} {formData.mediaType === 'video' ? (
+                          <input type="text" value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: e.target.value })} className="p-0.5 px-1 bg-white border border-slate-200 rounded w-20 text-center font-mono text-[11px]" />
+                        ) : (
+                          <input type="number" value={formData.pageCount} onChange={(e) => setFormData({ ...formData, pageCount: Number(e.target.value) })} className="p-0.5 px-1 bg-white border border-slate-200 rounded w-14 text-center font-mono text-[11px]" />
+                        )}
                       </span>
                     </div>
 
                     {!formData.fileUrl && (
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, fileUrl: 'https://storage.googleapis.com/edujamb-demo/sample-past-question.pdf', fileSize: '4.8 MB' })}
+                        onClick={() => setFormData({ ...formData, fileUrl: formData.mediaType === 'video' ? 'https://storage.googleapis.com/edujamb-demo/sample-lesson.mp4' : 'https://storage.googleapis.com/edujamb-demo/sample-past-question.pdf', fileSize: formData.mediaType === 'video' ? '12.0 MB' : '4.8 MB' })}
                         className="text-[11px] text-orange-600 hover:text-orange-700 underline cursor-pointer"
                       >
-                        Use Sample PDF Link
+                        Use Sample {formData.mediaType === 'video' ? 'Video' : 'PDF'} Link
                       </button>
                     )}
 

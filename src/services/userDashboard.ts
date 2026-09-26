@@ -7,6 +7,10 @@ export interface LocalPurchase {
   title: string;
   productId: string;
   purchasedAt: string;
+  mediaType?: 'document' | 'video';
+  duration?: string;
+  fileSize?: string;
+  format?: string;
 }
 
 const SAVED_MATERIALS_PREFIX = 'sam_edu_hub_saved_materials:';

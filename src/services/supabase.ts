@@ -460,9 +460,11 @@ class SupabaseService {
               price: Number(item.price) || 0,
               isFree: Boolean(item.is_free ?? (Number(item.price) === 0)),
               coverUrl: normalizeCoverUrl(item.cover_url || item.coverUrl || ''),
+              mediaType: item.media_type || item.mediaType || 'document',
               fileUrl: item.file_url || item.fileUrl || '',
               fileSize: item.file_size || item.fileSize || '5.0 MB',
               pageCount: item.page_count || item.pageCount || 100,
+              duration: item.duration || '',
               format: item.format || 'PDF eBook',
               description: item.description || '',
               features,
@@ -576,9 +578,11 @@ class SupabaseService {
           price: resource.price,
           is_free: resource.isFree,
           cover_url: resource.coverUrl,
+          media_type: resource.mediaType || 'document',
           file_url: resource.fileUrl,
           file_size: resource.fileSize,
           page_count: resource.pageCount,
+          duration: resource.duration || '',
           format: resource.format,
           description: resource.description,
           features: resource.features,
@@ -792,9 +796,11 @@ CREATE TABLE IF NOT EXISTS public.products (
     price NUMERIC DEFAULT 0,
     is_free BOOLEAN DEFAULT FALSE,
     cover_url TEXT,
+    media_type TEXT DEFAULT 'document',
     file_url TEXT,
     file_size TEXT DEFAULT '5.0 MB',
     page_count INTEGER DEFAULT 100,
+    duration TEXT,
     format TEXT DEFAULT 'PDF eBook',
     description TEXT,
     features JSONB DEFAULT '[]'::jsonb,
@@ -805,6 +811,11 @@ CREATE TABLE IF NOT EXISTS public.products (
     sample_questions JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add video metadata to existing products tables created by older migrations.
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'document';
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS duration TEXT;
+UPDATE public.products SET media_type = 'document' WHERE media_type IS NULL;
 
 -- 2. Enable Row Level Security (RLS)
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;

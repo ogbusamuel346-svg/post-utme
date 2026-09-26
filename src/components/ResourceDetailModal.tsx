@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Resource } from '../types';
-import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail } from 'lucide-react';
+import { X, Download, Star, CheckCircle, Share2, MessageCircle, BookOpen, ShieldCheck, ChevronDown, ChevronUp, AlertCircle, Check, RotateCcw, Mail, Video, PlayCircle } from 'lucide-react';
 import { supabaseService } from '../services/supabase';
 import { initializePayment, openPaystackCheckout, waitForPayment, recoverPayment, getFreeDownload } from '../services/paystack';
 import { rememberPurchase } from '../services/userDashboard';
@@ -27,10 +27,20 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
   const [recoveryReference, setRecoveryReference] = useState('');
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  const isVideo = resource.mediaType === 'video';
 
   useEffect(() => {
     if (user?.email && !buyerEmail) setBuyerEmail(user.email);
   }, [user?.email, buyerEmail]);
+
+  useEffect(() => {
+    setVideoUrl(null);
+    setDownloadSuccess(false);
+    setDownloadError(null);
+    setPurchaseMode('details');
+  }, [resource.id]);
 
   const handleDownload = async (fileUrlOverride?: string) => {
     setDownloading(true);
@@ -76,11 +86,13 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
       const pathName = parsedUrl?.pathname || fileUrl;
       const originalName = decodeURIComponent(pathName.split('/').pop() || '').split('?')[0];
       const hasExtension = /\.[a-z0-9]{2,5}$/i.test(originalName);
-      const extension = contentType.includes('word')
+      const extension = contentType.includes('video/')
+        ? `.${contentType.split('/')[1]?.split(';')[0] || 'mp4'}`
+        : contentType.includes('word')
         ? '.docx'
         : contentType.includes('text')
           ? '.txt'
-          : '.pdf';
+          : isVideo ? '.mp4' : '.pdf';
       const downloadName = hasExtension
         ? originalName
         : `${resource.slug || 'sam-edu-hub-resource'}${extension}`;
@@ -125,11 +137,21 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
       // Keep local/demo resources and legacy public links usable without the
       // payment API. New private-bucket files use the server grant below.
       if (storedUrl && !isPrivateMaterial) {
-        await handleDownload();
+        if (isVideo) {
+          setVideoUrl(storedUrl);
+          setDownloadSuccess(true);
+        } else {
+          await handleDownload();
+        }
         return;
       }
       const grant = await getFreeDownload(resource.id);
-      await handleDownload(grant.fileUrl);
+      if (isVideo) {
+        setVideoUrl(grant.fileUrl);
+        setDownloadSuccess(true);
+      } else {
+        await handleDownload(grant.fileUrl);
+      }
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : 'The free material could not be downloaded.');
     } finally {
@@ -165,10 +187,19 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
         email,
         title: grant.title,
         productId: grant.productId,
-        purchasedAt: new Date().toISOString()
+        purchasedAt: new Date().toISOString(),
+        mediaType: grant.mediaType,
+        duration: grant.duration,
+        fileSize: grant.fileSize,
+        format: grant.format
       });
       setPurchaseMode('success');
-      await handleDownload(grant.fileUrl);
+      if (isVideo) {
+        setVideoUrl(grant.fileUrl);
+        setDownloadSuccess(true);
+      } else {
+        await handleDownload(grant.fileUrl);
+      }
     } catch (error) {
       if (paymentReference) {
         setRecoveryEmail(email);
@@ -206,9 +237,18 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
         email,
         title: result.title,
         productId: result.productId,
-        purchasedAt: new Date().toISOString()
+        purchasedAt: new Date().toISOString(),
+        mediaType: result.mediaType,
+        duration: result.duration,
+        fileSize: result.fileSize,
+        format: result.format
       });
-      await handleDownload(result.fileUrl);
+      if (isVideo) {
+        setVideoUrl(result.fileUrl);
+        setDownloadSuccess(true);
+      } else {
+        await handleDownload(result.fileUrl);
+      }
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : 'The previous purchase could not be recovered.');
     } finally {
@@ -268,7 +308,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#0F294A] to-[#1E3A8A] text-white text-center">
-                    <BookOpen className="w-16 h-16 text-orange-400 mb-3" />
+                    {isVideo ? <Video className="w-16 h-16 text-orange-400 mb-3" /> : <BookOpen className="w-16 h-16 text-orange-400 mb-3" />}
                     <p className="font-bold text-base">{resource.title}</p>
                   </div>
                 )}
@@ -284,7 +324,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
               <div className="mt-4 flex items-center justify-center gap-3 text-xs text-slate-500">
                 <span>{resource.fileSize}</span>
                 <span aria-hidden="true">·</span>
-                <span>{resource.pageCount} Pages</span>
+                <span>{isVideo ? resource.duration || 'Video lesson' : `${resource.pageCount} Pages`}</span>
                 <span aria-hidden="true">·</span>
                 <span>{resource.format}</span>
               </div>
@@ -331,7 +371,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Verified CBT Format</span>
+                  <span>{isVideo ? 'Instant video access' : 'Verified CBT Format'}</span>
                 </div>
               </div>
 
@@ -344,13 +384,13 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                     className="w-full py-3.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
                   >
                     <Download className="w-5 h-5" />
-                    <span>{downloading ? 'Downloading Uploaded File...' : 'Download Free Past Questions'}</span>
+                    <span>{downloading ? 'Preparing...' : isVideo ? 'Watch & Download Video' : 'Download Free Past Questions'}</span>
                   </button>
                 ) : (
                   <div className="space-y-3">
                     <div>
                       <label htmlFor="buyer-email" className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Email for payment receipt and recovery
+                        Email for payment receipt and access recovery
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -373,7 +413,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                       className="py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                     >
                       <Download className="w-4 h-4 text-orange-400" />
-                      <span>{downloading ? 'Confirming payment...' : 'Pay & Download (₦' + resource.price.toLocaleString() + ')'}</span>
+                      <span>{downloading ? 'Confirming payment...' : isVideo ? 'Pay & Watch / Download (₦' + resource.price.toLocaleString() + ')' : 'Pay & Download (₦' + resource.price.toLocaleString() + ')'}</span>
                     </button>
                     
                     <button
@@ -391,7 +431,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                       className="mx-auto flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-orange-700 transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      {showRecovery ? 'Hide purchase recovery' : 'Already paid? Recover your download'}
+                      {showRecovery ? 'Hide purchase recovery' : isVideo ? 'Already paid? Recover video access' : 'Already paid? Recover your download'}
                     </button>
 
                     {showRecovery && (
@@ -423,17 +463,43 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                           disabled={recoveryLoading || downloading}
                           className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-orange-700 disabled:bg-slate-400 cursor-pointer"
                         >
-                          {recoveryLoading ? 'Checking payment...' : 'Recover & Download'}
+                          {recoveryLoading ? 'Checking payment...' : isVideo ? 'Recover & Watch Video' : 'Recover & Download'}
                         </button>
                       </div>
                     )}
                   </div>
                 )}
 
+                {isVideo && videoUrl && (
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-950 p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                      <PlayCircle className="h-4 w-4 text-orange-400" />
+                      Watch this video
+                    </div>
+                    <video
+                      src={videoUrl}
+                      controls
+                      playsInline
+                      className="max-h-[420px] w-full rounded-lg bg-black"
+                    >
+                      Your browser does not support embedded video playback.
+                    </video>
+                    <button
+                      type="button"
+                      onClick={() => void handleDownload(videoUrl)}
+                      disabled={downloading}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-700 disabled:bg-slate-400"
+                    >
+                      <Download className="h-4 w-4" />
+                      {downloading ? 'Preparing download...' : 'Download video'}
+                    </button>
+                  </div>
+                )}
+
                 {downloadSuccess && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{purchaseMode === 'success' ? 'Payment confirmed and your uploaded material is downloading.' : 'Download started! Check your browser downloads folder for the uploaded material.'}</span>
+                    <span>{isVideo && videoUrl ? 'Video access granted. You can watch it online or download it.' : purchaseMode === 'success' ? 'Payment confirmed and your uploaded material is downloading.' : 'Download started! Check your browser downloads folder for the uploaded material.'}</span>
                   </div>
                 )}
 
@@ -445,7 +511,7 @@ export function ResourceDetailModal({ resource, user, onClose, onDownloaded }: R
                 )}
 
                 <p className="text-[11px] text-slate-500 text-center">
-                  Instant mobile access · Printable PDF document · Complete answers & rationale
+                  {isVideo ? 'Instant online video access · Download for offline viewing' : 'Instant mobile access · Printable PDF document · Complete answers & rationale'}
                 </p>
               </div>
 

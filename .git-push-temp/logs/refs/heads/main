@@ -1,0 +1,20 @@
+0000000000000000000000000000000000000000 411d2e355d3339bcf71df15400a6d6460de8ebbd samuel <ogbusamuel346@gmail.com> 1790155339 +0100	clone: from https://github.com/ogbusamuel346-svg/post-utme.git
+411d2e355d3339bcf71df15400a6d6460de8ebbd a11f1877cb851647cead906b5e94dadf911cc0eb samuel <ogbusamuel346@gmail.com> 1790162289 +0100	commit: Fix resource sync and hero navigation updates
+a11f1877cb851647cead906b5e94dadf911cc0eb 320ee62a054785fc0fa39a3cc277db3e8d3ab6ec samuel <ogbusamuel346@gmail.com> 1790163672 +0100	commit: Fix production assets and admin route fallback
+320ee62a054785fc0fa39a3cc277db3e8d3ab6ec 93c511ceaf85d74d9624728bb3628504f6830e8a samuel <ogbusamuel346@gmail.com> 1790168010 +0100	commit: Download uploaded resource files from storage
+93c511ceaf85d74d9624728bb3628504f6830e8a 38ce3f7656760956840f3bb66a113562a6bc84be samuel <ogbusamuel346@gmail.com> 1790169002 +0100	commit: Update WhatsApp support number
+38ce3f7656760956840f3bb66a113562a6bc84be 323f45654fb8d2bd64b9c417ff2f17ccff5ef9d0 samuel <ogbusamuel346@gmail.com> 1790169717 +0100	commit: Apply Sam Edu Hub branding and favicon
+323f45654fb8d2bd64b9c417ff2f17ccff5ef9d0 e3b6a0330c1c8fe4606cc754d202f22b1bb7a3fc samuel <ogbusamuel346@gmail.com> 1790172743 +0100	commit: Integrate Paystack guest checkout and recovery
+e3b6a0330c1c8fe4606cc754d202f22b1bb7a3fc 42594bf5453448c8d54ecf84d305b517884e39a2 samuel <ogbusamuel346@gmail.com> 1790173193 +0100	commit: Refresh Supabase schema after payment migration
+42594bf5453448c8d54ecf84d305b517884e39a2 080481362055e82dd7dddfae4d241296fea2eb27 samuel <ogbusamuel346@gmail.com> 1790201514 +0100	commit: Remove Google sign-in and keep student email auth
+080481362055e82dd7dddfae4d241296fea2eb27 717748d26c41ea91e16d905727c15c7f635bc9e5 samuel <ogbusamuel346@gmail.com> 1790202574 +0100	commit: Add separate user dashboard
+717748d26c41ea91e16d905727c15c7f635bc9e5 5ddf1a179e002e7ca8c2c5e915d89040c33c3614 samuel <ogbusamuel346@gmail.com> 1790202889 +0100	commit: Redirect users to dashboard after sign in
+5ddf1a179e002e7ca8c2c5e915d89040c33c3614 366f1349422f6f09d58792fe90c1756a85befec5 samuel <ogbusamuel346@gmail.com> 1790206570 +0100	commit: Sync verified purchases to user accounts
+366f1349422f6f09d58792fe90c1756a85befec5 df24c8db2a9d4421855037a9a0b9869becf556a7 samuel <ogbusamuel346@gmail.com> 1790206911 +0100	commit: Link syllabus menu to official JAMB site
+df24c8db2a9d4421855037a9a0b9869becf556a7 8a2003dabb97502d7a751638da111cbb2eb602bb samuel <ogbusamuel346@gmail.com> 1790208324 +0100	commit: Link brochure guide to official JAMB page
+8a2003dabb97502d7a751638da111cbb2eb602bb 018f1cc20faa8cb18956d5e3b6b8f6d3523f29c2 samuel <ogbusamuel346@gmail.com> 1790209120 +0100	commit: Update landing page student image
+018f1cc20faa8cb18956d5e3b6b8f6d3523f29c2 f719864eb73c913faa75674b25374222c2692ab1 samuel <ogbusamuel346@gmail.com> 1790247510 +0100	commit: Add detailed Supabase RLS diagnostics
+f719864eb73c913faa75674b25374222c2692ab1 ffb054fe3b8ea73d32af103fcfef59b588b076bd samuel <ogbusamuel346@gmail.com> 1790248007 +0100	commit: Avoid storage upsert RLS requirements
+ffb054fe3b8ea73d32af103fcfef59b588b076bd fe395d124cb87e73565f8c7fe934f03e1a128d3a samuel <ogbusamuel346@gmail.com> 1790346118 +0100	commit: Redirect confirmed users to dashboard
+fe395d124cb87e73565f8c7fe934f03e1a128d3a e53c38a3efe3c3c831fdfa6e3e669f582a55314a samuel <ogbusamuel346@gmail.com> 1790347931 +0100	commit: Add password reset flow
+e53c38a3efe3c3c831fdfa6e3e669f582a55314a 84aca92d81541570d1cb0ee13cb7156c9ab84a4d samuel <ogbusamuel346@gmail.com> 1790433579 +0100	commit: Add paid video products and playback
