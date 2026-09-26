@@ -47,11 +47,9 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const [coverUploading, setCoverUploading] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
-  const [jambIssueVideoUploading, setJambIssueVideoUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const jambIssueVideoInputRef = useRef<HTMLInputElement>(null);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -81,14 +79,10 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     title: '',
     slug: '',
     issueType: 'Admission Update',
-    mediaType: 'document' as 'document' | 'video',
     institution: 'JAMB General',
     publishedAt: new Date().toISOString().slice(0, 10),
     coverUrl: coverJambEnglish,
     sourceUrl: '',
-    videoFileUrl: '',
-    videoFileSize: '',
-    videoDuration: '',
     description: '',
     highlightsText: ''
   });
@@ -254,14 +248,10 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       title: '',
       slug: '',
       issueType: 'Admission Update',
-      mediaType: 'document',
       institution: 'JAMB General',
       publishedAt: new Date().toISOString().slice(0, 10),
       coverUrl: coverJambEnglish,
       sourceUrl: '',
-      videoFileUrl: '',
-      videoFileSize: '',
-      videoDuration: '',
       description: '',
       highlightsText: ''
     });
@@ -278,46 +268,18 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
       title: issue.title,
       slug: issue.slug,
       issueType: issue.subject || 'JAMB Update',
-      mediaType: issue.mediaType || 'document',
       institution: issue.institution || 'JAMB General',
       publishedAt: issue.yearRange || new Date().toISOString().slice(0, 10),
       coverUrl: issue.coverUrl || coverJambEnglish,
-      sourceUrl: issue.mediaType === 'video' ? '' : issue.fileUrl || '',
-      videoFileUrl: issue.mediaType === 'video' ? issue.fileUrl || '' : '',
-      videoFileSize: issue.mediaType === 'video' ? issue.fileSize || '' : '',
-      videoDuration: issue.mediaType === 'video' ? issue.duration || '' : '',
+      sourceUrl: issue.fileUrl || '',
       description: issue.description,
       highlightsText: issue.features.join('\n')
     });
   };
 
-  const handleJambIssueVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setJambIssueVideoUploading(true);
-    // JAMB issue videos are public editorial media, unlike paid video products.
-    const result = await supabaseService.uploadFile(file, 'past-questions');
-    if (result.success && result.url) {
-      setJambIssueForm(prev => ({
-        ...prev,
-        mediaType: 'video',
-        videoFileUrl: result.url,
-        videoFileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-      }));
-      setActionMessage(null);
-    } else {
-      setActionMessage({ success: false, text: result.error || 'JAMB issue video upload failed.' });
-    }
-    setJambIssueVideoUploading(false);
-  };
-
   const handleSaveJambIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jambIssueForm.title.trim() || !jambIssueForm.description.trim()) return;
-    if (jambIssueForm.mediaType === 'video' && (!jambIssueForm.videoFileUrl.trim() || !jambIssueForm.videoDuration.trim())) {
-      setActionMessage({ success: false, text: 'Add the JAMB issue video file and its duration before publishing.' });
-      return;
-    }
 
     const wasEditing = Boolean(editingJambIssue);
     setIsSavingJambIssue(true);
@@ -340,12 +302,12 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
         price: 0,
         isFree: true,
         coverUrl: jambIssueForm.coverUrl.trim() || coverJambEnglish,
-        mediaType: jambIssueForm.mediaType,
-        fileUrl: jambIssueForm.mediaType === 'video' ? jambIssueForm.videoFileUrl.trim() : jambIssueForm.sourceUrl.trim(),
-        fileSize: jambIssueForm.mediaType === 'video' ? jambIssueForm.videoFileSize || 'Video file' : 'Online update',
+        mediaType: 'document',
+        fileUrl: jambIssueForm.sourceUrl.trim(),
+        fileSize: 'Online update',
         pageCount: 0,
-        duration: jambIssueForm.mediaType === 'video' ? jambIssueForm.videoDuration.trim() : '',
-        format: jambIssueForm.mediaType === 'video' ? 'JAMB Video Issue' : 'JAMB Issue',
+        duration: '',
+        format: 'JAMB Issue',
         description: jambIssueForm.description.trim(),
         features: highlights,
         downloadsCount: editingJambIssue?.downloadsCount || 0,
@@ -960,12 +922,13 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                       onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value as ResourceCategory })}
                       className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
                     >
-                      <option value="post_utme">Post-UTME Video Lesson</option>
-                      <option value="jamb_utme">JAMB UTME Video Lesson</option>
+                      <option value="post_utme">School / Post-UTME Video</option>
+                      <option value="jamb_utme">JAMB / General Video</option>
                       <option value="syllabus_novel">Syllabus & Novel Video</option>
                       <option value="formula_sheet">Formula Video</option>
                       <option value="bundle">Video Bundle</option>
                     </select>
+                    <p className="text-[10px] text-slate-400 mt-1">Use the institution field for any school name or leave it as JAMB General.</p>
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Video duration *</label>
@@ -979,78 +942,6 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                     />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Issue format</label>
-                    <select
-                      value={jambIssueForm.mediaType}
-                      onChange={(e) => setJambIssueForm({
-                        ...jambIssueForm,
-                        mediaType: e.target.value as 'document' | 'video'
-                      })}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
-                    >
-                      <option value="document">Written JAMB Issue</option>
-                      <option value="video">Video JAMB Issue</option>
-                    </select>
-                  </div>
-                  {jambIssueForm.mediaType === 'video' && (
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Video duration *</label>
-                      <input
-                        type="text"
-                        required
-                        value={jambIssueForm.videoDuration}
-                        onChange={(e) => setJambIssueForm({ ...jambIssueForm, videoDuration: e.target.value })}
-                        placeholder="e.g. 8m 30s"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {jambIssueForm.mediaType === 'video' && (
-                  <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50/60 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="block font-semibold text-slate-700">JAMB issue video *</label>
-                      {jambIssueForm.videoFileUrl && <span className="text-[10px] font-semibold text-emerald-700">Video ready</span>}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="file"
-                        ref={jambIssueVideoInputRef}
-                        accept="video/*,.mp4,.webm,.mov,.m4v"
-                        onChange={handleJambIssueVideoUpload}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => jambIssueVideoInputRef.current?.click()}
-                        disabled={jambIssueVideoUploading}
-                        className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer text-xs whitespace-nowrap"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-orange-500" />
-                        {jambIssueVideoUploading ? 'Uploading...' : 'Choose issue video'}
-                      </button>
-                      <input
-                        type="url"
-                        required={!jambIssueForm.videoFileUrl}
-                        value={jambIssueForm.videoFileUrl}
-                        onChange={(e) => setJambIssueForm({ ...jambIssueForm, videoFileUrl: e.target.value })}
-                        placeholder="Or paste a public MP4/WebM video URL"
-                        className="flex-1 p-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-orange-500 font-mono"
-                      />
-                    </div>
-                    {jambIssueForm.videoFileUrl && (
-                      <div className="flex items-center justify-between gap-3 text-[11px] text-slate-600">
-                        <span>File size: {jambIssueForm.videoFileSize || 'Direct link'}</span>
-                        <button type="button" onClick={() => setJambIssueForm({ ...jambIssueForm, videoFileUrl: '', videoFileSize: '' })} className="text-rose-600 hover:text-rose-800 underline cursor-pointer">Clear video</button>
-                      </div>
-                    )}
-                    <p className="text-[10px] text-slate-500">This video is stored as public JAMB issue media so visitors can watch it directly from the site.</p>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
