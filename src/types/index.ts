@@ -53,6 +53,7 @@ export interface FilterState {
   category: ResourceCategory;
   institution: string;
   subject: string;
+  contentType: 'all' | 'document' | 'video';
   priceFilter: 'all' | 'free' | 'paid';
   sortBy: 'popular' | 'newest' | 'price_asc' | 'price_desc' | 'rating';
 }

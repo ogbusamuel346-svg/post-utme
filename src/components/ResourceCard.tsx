@@ -64,19 +64,28 @@ export function ResourceCard({ resource, onSelect, onQuickDownload, isSaved = fa
         )}
 
         {/* Free / Paid Marker (unboxed clean tag or top right indicator) */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
           {isJambIssue ? (
             <span className="px-2.5 py-1 text-xs font-bold text-orange-800 bg-orange-50 border border-orange-200/80 rounded-md shadow-xs">
               JAMB UPDATE
             </span>
-          ) : resource.isFree ? (
-            <span className="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-md shadow-xs">
-              {resource.mediaType === 'video' ? 'FREE VIDEO' : 'FREE PDF'}
-            </span>
           ) : (
-            <span className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-md shadow-xs tabular-nums">
-              ₦{resource.price.toLocaleString()}
-            </span>
+            <>
+              {resource.mediaType === 'video' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white bg-orange-600 rounded-md shadow-xs">
+                  <Video className="w-3 h-3" /> VIDEO LESSON
+                </span>
+              )}
+              {resource.isFree ? (
+                <span className="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-md shadow-xs">
+                  {resource.mediaType === 'video' ? 'FREE VIDEO' : 'FREE PDF'}
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-md shadow-xs tabular-nums">
+                  ₦{resource.price.toLocaleString()}
+                </span>
+              )}
+            </>
           )}
         </div>
 

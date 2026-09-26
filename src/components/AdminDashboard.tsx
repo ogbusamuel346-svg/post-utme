@@ -21,7 +21,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResource, currentUser, onSignOut }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'jamb_issues' | 'supabase'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'videos' | 'jamb_issues' | 'supabase'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   
@@ -31,6 +31,8 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingJambIssue, setIsSavingJambIssue] = useState(false);
   const [editingJambIssue, setEditingJambIssue] = useState<Resource | null>(null);
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<Resource | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ success: boolean; text: string } | null>(null);
   
@@ -44,8 +46,10 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   // File upload state for form
   const [coverUploading, setCoverUploading] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -83,6 +87,23 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
     highlightsText: ''
   });
 
+  const [videoForm, setVideoForm] = useState({
+    title: '',
+    slug: '',
+    category: 'post_utme' as ResourceCategory,
+    institution: '',
+    subject: 'General Paper',
+    yearRange: '2025 - 2026 Lesson',
+    price: 3500,
+    isFree: false,
+    coverUrl: coverJambSciences,
+    duration: '',
+    fileUrl: '',
+    fileSize: '',
+    description: '',
+    featuresText: 'HD video lesson\nWatch online instantly\nDownload for offline viewing\nStep-by-step expert explanation'
+  });
+
   // Calculate stats
   const totalDownloads = resources.reduce((acc, r) => acc + (r.downloadsCount || 0), 0);
   const totalRevenue = resources.reduce((acc, r) => acc + ((r.downloadsCount || 0) * (r.price || 0)), 0);
@@ -99,6 +120,127 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
   const jambIssues = resources
     .filter(resource => resource.category === 'jamb_issues')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const videos = resources
+    .filter(resource => resource.mediaType === 'video')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const resetVideoForm = () => {
+    setEditingVideo(null);
+    setVideoForm({
+      title: '',
+      slug: '',
+      category: 'post_utme',
+      institution: '',
+      subject: 'General Paper',
+      yearRange: '2025 - 2026 Lesson',
+      price: 3500,
+      isFree: false,
+      coverUrl: coverJambSciences,
+      duration: '',
+      fileUrl: '',
+      fileSize: '',
+      description: '',
+      featuresText: 'HD video lesson\nWatch online instantly\nDownload for offline viewing\nStep-by-step expert explanation'
+    });
+  };
+
+  const openVideoEditor = (video?: Resource) => {
+    if (!video) {
+      resetVideoForm();
+      return;
+    }
+
+    setEditingVideo(video);
+    setVideoForm({
+      title: video.title,
+      slug: video.slug,
+      category: video.category,
+      institution: video.institution || 'JAMB General',
+      subject: video.subject || 'General Paper',
+      yearRange: video.yearRange,
+      price: video.price,
+      isFree: video.isFree,
+      coverUrl: video.coverUrl || coverJambSciences,
+      duration: video.duration || '',
+      fileUrl: video.fileUrl || '',
+      fileSize: video.fileSize || '',
+      description: video.description,
+      featuresText: video.features.join('\n')
+    });
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoUploading(true);
+    const result = await supabaseService.uploadFile(file, 'paid-materials');
+    if (result.success && result.url) {
+      setVideoForm(prev => ({
+        ...prev,
+        fileUrl: result.url,
+        fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+      }));
+      setActionMessage(null);
+    } else {
+      setActionMessage({ success: false, text: result.error || 'Video upload failed.' });
+    }
+    setVideoUploading(false);
+  };
+
+  const handleSaveVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!videoForm.title.trim() || !videoForm.fileUrl.trim() || !videoForm.duration.trim()) return;
+
+    const wasEditing = Boolean(editingVideo);
+    setIsSavingVideo(true);
+    setActionMessage(null);
+    try {
+      const slug = videoForm.slug.trim() || videoForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const features = videoForm.featuresText.split('\n').map(item => item.trim()).filter(Boolean);
+      const video: Resource = {
+        id: editingVideo?.id || `video-${Date.now()}`,
+        slug,
+        title: videoForm.title.trim(),
+        category: videoForm.category as Exclude<ResourceCategory, 'all'>,
+        institution: videoForm.institution.trim() || 'JAMB General',
+        subject: videoForm.subject.trim() || 'General Paper',
+        yearRange: videoForm.yearRange.trim() || 'Latest Lesson',
+        price: videoForm.isFree ? 0 : Number(videoForm.price),
+        isFree: videoForm.isFree,
+        coverUrl: videoForm.coverUrl.trim() || coverJambSciences,
+        mediaType: 'video',
+        fileUrl: videoForm.fileUrl.trim(),
+        fileSize: videoForm.fileSize || 'Video file',
+        pageCount: 0,
+        duration: videoForm.duration.trim(),
+        format: 'Video lesson',
+        description: videoForm.description.trim() || `Expert video lesson for ${videoForm.institution.trim() || 'JAMB and Post-UTME students'}.`,
+        features: features.length ? features : ['Video lesson', 'Instant online access', 'Offline download'],
+        downloadsCount: editingVideo?.downloadsCount || 0,
+        rating: editingVideo?.rating || 5,
+        reviewCount: editingVideo?.reviewCount || 0,
+        isFeatured: true,
+        sampleQuestions: editingVideo?.sampleQuestions || [],
+        createdAt: editingVideo?.createdAt || new Date().toISOString()
+      };
+
+      const result = await supabaseService.saveResource(video);
+      if (!result.success) {
+        setActionMessage({ success: false, text: result.message || 'The video product could not be published.' });
+        return;
+      }
+
+      resetVideoForm();
+      setActionMessage({ success: true, text: wasEditing ? 'Video product updated successfully.' : 'Video product published successfully.' });
+      await onRefresh();
+    } catch (err) {
+      console.error('Video save error:', err);
+      setActionMessage({ success: false, text: 'The video product could not be published. Please try again.' });
+    } finally {
+      setIsSavingVideo(false);
+    }
+  };
 
   const resetJambIssueForm = () => {
     setEditingJambIssue(null);
@@ -427,6 +569,21 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
               </button>
               <button
                 onClick={() => {
+                  setActiveTab('videos');
+                  setActionMessage(null);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'videos'
+                    ? 'bg-orange-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Video Products</span>
+                <span className="sm:hidden">Videos</span>
+              </button>
+              <button
+                onClick={() => {
                   setActiveTab('jamb_issues');
                   setActionMessage(null);
                 }}
@@ -705,6 +862,250 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
               </table>
             </div>
 
+          </div>
+        )}
+
+        {/* Dedicated Video Products workspace */}
+        {activeTab === 'videos' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-6">
+            <section className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-200 bg-slate-950">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-orange-400">
+                      <Video className="w-5 h-5" />
+                      <h2 className="text-base font-bold text-white font-display">
+                        {editingVideo ? 'Edit Video Product' : 'Upload Video Product'}
+                      </h2>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">
+                      This dedicated video workflow keeps lessons separate from PDF/document uploads.
+                    </p>
+                  </div>
+                  {editingVideo && (
+                    <button
+                      type="button"
+                      onClick={resetVideoForm}
+                      className="text-xs font-semibold text-slate-300 hover:text-white underline cursor-pointer"
+                    >
+                      New video
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveVideo} className="p-5 space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Video title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={videoForm.title}
+                    onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                    placeholder="e.g. JAMB Mathematics: Algebra Masterclass"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Product category</label>
+                    <select
+                      value={videoForm.category}
+                      onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value as ResourceCategory })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                    >
+                      <option value="post_utme">Post-UTME Video Lesson</option>
+                      <option value="jamb_utme">JAMB UTME Video Lesson</option>
+                      <option value="syllabus_novel">Syllabus & Novel Video</option>
+                      <option value="formula_sheet">Formula Video</option>
+                      <option value="bundle">Video Bundle</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Video duration *</label>
+                    <input
+                      type="text"
+                      required
+                      value={videoForm.duration}
+                      onChange={(e) => setVideoForm({ ...videoForm, duration: e.target.value })}
+                      placeholder="e.g. 1h 25m"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Institution / exam</label>
+                    <input
+                      type="text"
+                      value={videoForm.institution}
+                      onChange={(e) => setVideoForm({ ...videoForm, institution: e.target.value })}
+                      placeholder="JAMB General, UNILAG, UI..."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Subject / coverage</label>
+                    <input
+                      type="text"
+                      value={videoForm.subject}
+                      onChange={(e) => setVideoForm({ ...videoForm, subject: e.target.value })}
+                      placeholder="Mathematics, Biology, Use of English..."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50/60 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block font-semibold text-slate-700">Video file or direct video URL *</label>
+                    {videoForm.fileUrl && <span className="text-[10px] font-semibold text-emerald-700">Video ready</span>}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="file"
+                      ref={videoInputRef}
+                      accept="video/*,.mp4,.webm,.mov,.m4v"
+                      onChange={handleVideoUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => videoInputRef.current?.click()}
+                      disabled={videoUploading}
+                      className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer text-xs whitespace-nowrap"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-orange-500" />
+                      {videoUploading ? 'Uploading video...' : 'Choose video file'}
+                    </button>
+                    <input
+                      type="url"
+                      required={!videoForm.fileUrl}
+                      value={videoForm.fileUrl}
+                      onChange={(e) => setVideoForm({ ...videoForm, fileUrl: e.target.value })}
+                      placeholder="Or paste an MP4/WebM/Supabase video URL"
+                      className="flex-1 p-2 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+                  {videoForm.fileUrl && (
+                    <div className="flex items-center justify-between gap-3 text-[11px] text-slate-600">
+                      <span>File size: {videoForm.fileSize || 'Direct link'}</span>
+                      <button type="button" onClick={() => setVideoForm({ ...videoForm, fileUrl: '', fileSize: '' })} className="text-rose-600 hover:text-rose-800 underline cursor-pointer">Clear video</button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-slate-500">Uploaded videos are stored in the private paid-materials bucket and become available after free access or payment verification.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Price (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      disabled={videoForm.isFree}
+                      value={videoForm.price}
+                      onChange={(e) => setVideoForm({ ...videoForm, price: Number(e.target.value) })}
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none disabled:bg-slate-100"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 pt-5 font-semibold text-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={videoForm.isFree}
+                      onChange={(e) => setVideoForm({ ...videoForm, isFree: e.target.checked, price: e.target.checked ? 0 : 3500 })}
+                      className="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer"
+                    />
+                    Offer as free video
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Cover image URL</label>
+                  <input
+                    type="url"
+                    value={videoForm.coverUrl}
+                    onChange={(e) => setVideoForm({ ...videoForm, coverUrl: e.target.value })}
+                    placeholder="Paste a cover image URL"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Video description</label>
+                  <textarea
+                    rows={4}
+                    value={videoForm.description}
+                    onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
+                    placeholder="Explain what students will learn in this video..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Video highlights (one per line)</label>
+                  <textarea
+                    rows={3}
+                    value={videoForm.featuresText}
+                    onChange={(e) => setVideoForm({ ...videoForm, featuresText: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSavingVideo || videoUploading}
+                  className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  {isSavingVideo ? 'Publishing video...' : editingVideo ? 'Update Video Product' : 'Publish Video Product'}
+                </button>
+              </form>
+            </section>
+
+            <section className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-display">Published Video Products</h2>
+                  <p className="text-xs text-slate-500 mt-1">{videos.length} video{videos.length === 1 ? '' : 's'} visible in the Video Lessons section.</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 border border-orange-200 text-[11px] font-semibold">
+                  <Video className="w-3.5 h-3.5" />
+                  Frontend featured
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {videos.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 text-xs">
+                    No videos published yet. Upload your first video using the form.
+                  </div>
+                ) : videos.map((video) => (
+                  <article key={video.id} className="p-5 hover:bg-slate-50/80 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-900">
+                        {video.coverUrl ? <img src={video.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Video className="h-7 w-7 text-orange-400" /></div>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-orange-600">{video.duration || 'Video lesson'}</p>
+                            <h3 className="mt-1 text-sm font-bold text-slate-900 line-clamp-2">{video.title}</h3>
+                            <p className="mt-1 text-xs text-slate-500">{video.institution || 'JAMB General'} · {video.isFree ? 'Free' : `₦${video.price.toLocaleString()}`}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onClick={() => openVideoEditor(video)} className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer" title="Edit video"><Edit2 className="w-3.5 h-3.5" /></button>
+                            <button type="button" onClick={() => setDeleteConfirmId(video.id)} className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded transition-colors cursor-pointer" title="Delete video"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => onOpenResource(video)} className="mt-2 text-[11px] font-semibold text-orange-600 hover:text-orange-700 underline cursor-pointer">Preview video product</button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
         )}
 
@@ -1149,8 +1550,13 @@ export function AdminDashboard({ resources, onRefresh, onBackToSite, onOpenResou
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
                   >
                     <option value="document">PDF / Document</option>
-                    <option value="video">Video</option>
+                    {editingResource?.mediaType === 'video' && (
+                      <option value="video">Video (edit from Video Products)</option>
+                    )}
                   </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Upload videos from the dedicated Video Products tab.
+                  </p>
                 </div>
                 {formData.mediaType === 'video' && (
                   <div>

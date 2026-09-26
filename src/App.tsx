@@ -21,7 +21,7 @@ import { getSavedMaterialIds, saveMaterialIds } from './services/userDashboard';
 import { 
   Search, Filter, BookOpen, Calculator, GraduationCap, 
   CheckCircle, ArrowRight, Star, Download, ChevronRight,
-  ShieldCheck, HelpCircle, Sparkles, AlertCircle, Loader2
+  ShieldCheck, HelpCircle, Sparkles, AlertCircle, Loader2, Video, PlayCircle
 } from 'lucide-react';
 
 const checkIsAdminPath = (): boolean => {
@@ -76,6 +76,7 @@ export default function App() {
     category: 'all',
     institution: 'All Institutions',
     subject: 'All Subjects',
+    contentType: 'all',
     priceFilter: 'all',
     sortBy: 'popular'
   });
@@ -215,6 +216,10 @@ export default function App() {
       return false;
     }
 
+    // Content type keeps video lessons discoverable independently of PDF/document categories.
+    if (filterState.contentType === 'video' && item.mediaType !== 'video') return false;
+    if (filterState.contentType === 'document' && item.mediaType === 'video') return false;
+
     // Institution
     if (filterState.institution !== 'All Institutions' && item.institution !== filterState.institution) {
       return false;
@@ -247,23 +252,33 @@ export default function App() {
     return 0;
   });
 
+  const featuredVideos = [...resources]
+    .filter(resource => resource.mediaType === 'video')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  const showVideoCatalog = () => {
+    setFilterState(prev => ({ ...prev, category: 'all', contentType: 'video', search: '' }));
+    document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleNavSelect = (tab: string) => {
     setActiveNavTab(tab);
     if (tab === 'post_utme') {
-      setFilterState(prev => ({ ...prev, category: 'post_utme', search: '' }));
+      setFilterState(prev => ({ ...prev, category: 'post_utme', contentType: 'all', search: '' }));
     } else if (tab === 'jamb_utme') {
-      setFilterState(prev => ({ ...prev, category: 'jamb_utme', search: '' }));
+      setFilterState(prev => ({ ...prev, category: 'jamb_utme', contentType: 'all', search: '' }));
     } else if (tab === 'syllabus_novel') {
-      setFilterState(prev => ({ ...prev, category: 'syllabus_novel', search: '' }));
+      setFilterState(prev => ({ ...prev, category: 'syllabus_novel', contentType: 'all', search: '' }));
     } else if (tab === 'all_resources') {
-      setFilterState(prev => ({ ...prev, category: 'all', search: '' }));
+      setFilterState(prev => ({ ...prev, category: 'all', contentType: 'all', search: '' }));
     } else if (tab === 'home') {
-      setFilterState(prev => ({ ...prev, category: 'all', search: '', institution: 'All Institutions' }));
+      setFilterState(prev => ({ ...prev, category: 'all', contentType: 'all', search: '', institution: 'All Institutions' }));
     }
   };
 
   const handleSearchFromHero = (query: string) => {
-    setFilterState(prev => ({ ...prev, search: query, category: 'all' }));
+    setFilterState(prev => ({ ...prev, search: query, category: 'all', contentType: 'all' }));
     const target = document.getElementById('catalog-section');
     if (target) {
       target.scrollIntoView({ behavior: 'smooth' });
@@ -271,7 +286,7 @@ export default function App() {
   };
 
   const handleCategoryFromHero = (category: string) => {
-    setFilterState(prev => ({ ...prev, category: category as any }));
+    setFilterState(prev => ({ ...prev, category: category as any, contentType: 'all' }));
     const target = document.getElementById('catalog-section');
     if (target) {
       target.scrollIntoView({ behavior: 'smooth' });
@@ -282,6 +297,7 @@ export default function App() {
     setFilterState(prev => ({
       ...prev,
       category: 'post_utme',
+      contentType: 'all',
       institution: university,
       search: ''
     }));
@@ -474,6 +490,65 @@ export default function App() {
             </div>
           </section>
 
+          {/* Prominent Video Lessons Section */}
+          {featuredVideos.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F294A] via-[#173D6B] to-[#1E3A8A] p-5 sm:p-7 text-white shadow-lg">
+                <div className="absolute -right-14 -top-16 h-48 w-48 rounded-full bg-orange-500/20 blur-2xl" />
+                <div className="relative flex flex-col gap-5">
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-300">
+                        <Video className="h-4 w-4" />
+                        Learn on demand
+                      </div>
+                      <h2 className="mt-1 text-2xl sm:text-3xl font-bold font-display">New Video Lessons</h2>
+                      <p className="mt-1 max-w-2xl text-xs sm:text-sm text-slate-200">
+                        Watch expert-led lessons online or pay once to unlock instant video access and offline download.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={showVideoCatalog}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-orange-400 cursor-pointer"
+                    >
+                      View all videos
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {featuredVideos.map((video) => (
+                      <button
+                        key={video.id}
+                        type="button"
+                        onClick={() => setSelectedResource(video)}
+                        className="group overflow-hidden rounded-xl border border-white/15 bg-white/10 text-left backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/15 cursor-pointer"
+                      >
+                        <div className="relative aspect-video overflow-hidden bg-slate-900">
+                          {video.coverUrl ? (
+                            <img src={video.coverUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center bg-slate-900">
+                              <PlayCircle className="h-12 w-12 text-orange-400" />
+                            </div>
+                          )}
+                          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-orange-500 px-2 py-1 text-[10px] font-bold text-white">
+                            <PlayCircle className="h-3 w-3" /> VIDEO
+                          </span>
+                        </div>
+                        <div className="p-3">
+                          <p className="line-clamp-2 text-sm font-bold text-white">{video.title}</p>
+                          <p className="mt-1 text-[11px] text-slate-300">{video.duration || 'Video lesson'} · {video.isFree ? 'Free access' : `₦${video.price.toLocaleString()}`}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Main Resource Catalog Section */}
           <section id="catalog-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
             
@@ -486,17 +561,19 @@ export default function App() {
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
                   Showing <span className="font-semibold text-slate-800 tabular-nums">{sortedResources.length}</span> verified resources
                   {filterState.search && <span> matching "{filterState.search}"</span>}
+                  {filterState.contentType === 'video' && <span> · video lessons</span>}
                 </p>
               </div>
 
               {/* Reset Filters button if active */}
-              {(filterState.search || filterState.category !== 'all' || filterState.institution !== 'All Institutions' || filterState.priceFilter !== 'all') && (
+              {(filterState.search || filterState.category !== 'all' || filterState.contentType !== 'all' || filterState.institution !== 'All Institutions' || filterState.priceFilter !== 'all') && (
                 <button
                   onClick={() => setFilterState({
                     search: '',
                     category: 'all',
                     institution: 'All Institutions',
                     subject: 'All Subjects',
+                    contentType: 'all',
                     priceFilter: 'all',
                     sortBy: 'popular'
                   })}
@@ -537,6 +614,18 @@ export default function App() {
 
               {/* Secondary Selectors (Institution, Free/Paid, Sort) */}
               <div className="flex flex-wrap items-center gap-2">
+
+                {/* Content Type */}
+                <select
+                  value={filterState.contentType}
+                  onChange={(e) => setFilterState(prev => ({ ...prev, contentType: e.target.value as 'all' | 'document' | 'video' }))}
+                  aria-label="Filter by content type"
+                  className="py-1.5 px-2.5 text-xs bg-orange-50 border border-orange-200 rounded-lg text-orange-800 font-semibold focus:outline-none"
+                >
+                  <option value="all">All Content</option>
+                  <option value="video">Video Lessons</option>
+                  <option value="document">PDFs & Documents</option>
+                </select>
                 
                 {/* Institution Dropdown */}
                 <select
@@ -601,6 +690,7 @@ export default function App() {
                     category: 'all',
                     institution: 'All Institutions',
                     subject: 'All Subjects',
+                    contentType: 'all',
                     priceFilter: 'all',
                     sortBy: 'popular'
                   })}

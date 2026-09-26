@@ -16,9 +16,12 @@ const LEGACY_COVER_URLS: Record<string, string> = {
 };
 
 const normalizeCoverUrl = (url: string): string => LEGACY_COVER_URLS[url] || url;
+const inferMediaType = (fileUrl = ''): 'document' | 'video' =>
+  /\.(mp4|webm|mov|m4v|ogg)(?:$|[?#])/i.test(fileUrl) ? 'video' : 'document';
 const normalizeResource = (resource: Resource): Resource => ({
   ...resource,
-  coverUrl: normalizeCoverUrl(resource.coverUrl || '')
+  coverUrl: normalizeCoverUrl(resource.coverUrl || ''),
+  mediaType: resource.mediaType || inferMediaType(resource.fileUrl || '')
 });
 
 const isProductsTableMissingError = (error: any): boolean => {
@@ -460,7 +463,7 @@ class SupabaseService {
               price: Number(item.price) || 0,
               isFree: Boolean(item.is_free ?? (Number(item.price) === 0)),
               coverUrl: normalizeCoverUrl(item.cover_url || item.coverUrl || ''),
-              mediaType: item.media_type || item.mediaType || 'document',
+              mediaType: item.media_type || item.mediaType || inferMediaType(item.file_url || item.fileUrl || ''),
               fileUrl: item.file_url || item.fileUrl || '',
               fileSize: item.file_size || item.fileSize || '5.0 MB',
               pageCount: item.page_count || item.pageCount || 100,
