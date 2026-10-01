@@ -22,6 +22,7 @@ export function Navbar({
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'My Profile';
+  const jambCbtTestUrl = 'https://sam-cbt.vercel.app/';
   const officialSyllabusUrl = 'https://ibass.jamb.gov.ng/e-syllabus';
   const officialBrochureUrl = 'https://ibass.jamb.gov.ng/brochure-by-institution';
 
@@ -34,6 +35,11 @@ export function Navbar({
   const handleSyllabusClick = () => {
     setMobileMenuOpen(false);
     window.location.assign(officialSyllabusUrl);
+  };
+
+  const handleJambCbtTestClick = () => {
+    setMobileMenuOpen(false);
+    window.location.assign(jambCbtTestUrl);
   };
 
   const handleBrochureClick = () => {
@@ -75,12 +81,10 @@ export function Navbar({
               Home
             </button>
             <button
-              onClick={() => handleNavClick('jamb_utme')}
-              className={`transition-colors whitespace-nowrap hover:text-[#0F294A] ${
-                currentTab === 'jamb_utme' ? 'text-[#0F294A] font-semibold' : ''
-              }`}
+              onClick={handleJambCbtTestClick}
+              className="transition-colors whitespace-nowrap hover:text-[#0F294A]"
             >
-              JAMB UTME
+              JAMB CBT TEST
             </button>
             <button
               onClick={() => handleNavClick('post_utme')}
@@ -149,10 +153,10 @@ export function Navbar({
               Home
             </button>
             <button
-              onClick={() => handleNavClick('jamb_utme')}
+              onClick={handleJambCbtTestClick}
               className="text-left px-3 py-2 rounded-md text-sm font-medium text-slate-800 hover:bg-slate-100"
             >
-              JAMB UTME Past Questions
+              JAMB CBT TEST
             </button>
             <button
               onClick={() => handleNavClick('post_utme')}
